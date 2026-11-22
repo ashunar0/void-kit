@@ -1,0 +1,13 @@
+{
+  "jsPlugins": ["./index.mjs"],
+  "plugins": ["import", "typescript"],
+  "rules": {
+    "import/no-cycle": "error",
+    "typescript/no-explicit-any": "error",
+    "void-kit/route-exports-endpoints": "error",
+    "void-kit/route-file-is-index": "error",
+    "void-kit/no-module-scope-state": "error",
+    "void-kit/no-id-cast": "error"
+  },
+  "ignorePatterns": [".void/**", "node_modules/**"]
+}
