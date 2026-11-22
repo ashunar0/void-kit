@@ -10,3 +10,9 @@ Read before you…
 
 - **add a resource or an endpoint** under `routes/`: [resources.md](resources.md)
 - **call an endpoint** from the client (pages, components) and handle its failures: [client.md](client.md)
+
+## Known issues in Void
+
+Not void-kit's rules: problems in Void (1.11) that void-kit apps run into. Remove a line once Void fixes it.
+
+- **Referencing the user table** (`userTable` from `.void/better-auth-schema.ts`, for an owner's foreign key): Void's auth guide says to add `"@auth-schema"` to the tsconfig `paths`. That passes the typecheck and `void db generate`, but `vp dev` stops with `Cannot find module '@auth-schema'`, because the dev server does not read tsconfig `paths`. If you use the alias, also add `resolve: { tsconfigPaths: true }` to `defineConfig` in `vite.config.ts`
