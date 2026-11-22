@@ -15,4 +15,4 @@ Read before you…
 
 Not void-kit's rules: problems in Void (1.11) that void-kit apps run into. Remove a line once Void fixes it.
 
-- **Referencing the user table** (`userTable` from `.void/better-auth-schema.ts`, for an owner's foreign key): Void's auth guide says to add `"@auth-schema"` to the tsconfig `paths`. That passes the typecheck and `void db generate`, but `vp dev` stops with `Cannot find module '@auth-schema'`, because the dev server does not read tsconfig `paths`. If you use the alias, also add `resolve: { tsconfigPaths: true }` to `defineConfig` in `vite.config.ts`
+- **Referencing the user table** (`userTable` from `.void/better-auth-schema.ts`, for an owner's foreign key): Void's auth guide says to add `"@auth-schema"` to the tsconfig `paths`. That passes the typecheck and `void db generate`, but `vp dev` stops with `Cannot find module '@auth-schema'`, because the dev server does not read tsconfig `paths`. If you use the alias, also add `resolve: { tsconfigPaths: true }` to `defineConfig` in `vite.config.ts` ([voidzero-dev/void#900](https://github.com/voidzero-dev/void/issues/900))
