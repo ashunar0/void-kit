@@ -40,6 +40,12 @@ export type FailureOf<P extends string, M extends string> = P extends keyof Fail
 type Options<P extends Path, M extends MethodsOf<P>> = Parameters<typeof fetch<P, M>>[1];
 type Output<P extends Path, M extends MethodsOf<P>> = Awaited<ReturnType<typeof fetch<P, M>>>;
 
+/**
+ * What `result.value` is for that endpoint (its success body, after JSON), to name it in the client:
+ * `type Invoice = SuccessOf<"/invoices/[id]", "GET">`
+ */
+export type SuccessOf<P extends Path, M extends MethodsOf<P> = DefaultMethod<P>> = Output<P, M>;
+
 type InputOf<P extends Path, M extends MethodsOf<P>> = RouteMap[P][M] extends { input: infer I }
   ? I
   : {};

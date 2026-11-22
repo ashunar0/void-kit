@@ -1,6 +1,6 @@
 // Not run: tsc checks that the client sees what the endpoints declared
 import { fetch } from "void/client";
-import { fetchResult } from "void-kit/client";
+import { fetchResult, type SuccessOf } from "void-kit/client";
 
 export const read = async () => {
   const invoice = await fetch("/invoices/[id]", { params: { id: "inv_1" } });
@@ -47,3 +47,10 @@ export const readResult = async () => {
   }
   return [amount, created.value.id, me.value.email];
 };
+
+// the success body has a name for the client (useState, props)
+type Invoice = SuccessOf<"/invoices/[id]">;
+type Created = SuccessOf<"/invoices", "POST">;
+export const names = (invoice: Invoice, created: Created) => invoice.amount + created.amount;
+// @ts-expect-error the success schema has no internalNote
+export const noNote = (invoice: Invoice) => invoice.internalNote;

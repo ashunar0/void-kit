@@ -17,6 +17,15 @@ if (!result.ok) {
 result.value; // the invoice
 ```
 
+To name a success body (for `useState` or props), use `SuccessOf`; do not dig it out of `.void/routes.d.ts`:
+
+```ts
+import type { SuccessOf } from "void-kit/client";
+
+type Invoice = SuccessOf<"/invoices/[id]">; // GET when no method is given
+type InvoiceList = SuccessOf<"/invoices", "GET">;
+```
+
 - `result.error` is `{ code, message, details? }`. Its codes are the endpoint's `responses.failures`, those of its guard (`UNAUTHORIZED` for `requireAuth`), and `VALIDATION_ERROR` when it reads input. Branch on `code`, never on `message` or the status
 - `VALIDATION_ERROR`'s `details` maps each field to its messages (`{ amount: ["Too small"] }`); show `details.<field>` next to the field
 - A failure that declares details has them typed once the `code` is checked

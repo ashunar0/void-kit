@@ -2,7 +2,8 @@
 
 The rules every file keeps. Types and lint stop most of them; the rest are here.
 
-- **Who may call**: every endpoint's `auth` is a guard, and it is required, so a forgotten guard and a deliberately public endpoint differ. `requireAuth` answers 401 to a signed-out request and sets `c.var.currentUser` to the signed-in `CurrentUser`; `allowAnonymous` lets everyone through and sets it to `null` (grep it to list every public endpoint). Void's auth (Better Auth, `void/auth`) reads the session; void-kit only turns its user into a `CurrentUser`. **Void's auth must be on** for anyone to be signed in: `auth: { providers: ["email"] }` in `void.config.ts`, or an `auth.ts` at the project root (`node_modules/void/docs/guide/auth.md`). void-kit does not turn it on; while it is off, `requireAuth` throws an error saying so
+- **Who may call**: every endpoint's `auth` is a guard, and it is required, so a forgotten guard and a deliberately public endpoint differ. `requireAuth` answers 401 to a signed-out request and sets `c.var.currentUser` to the signed-in `CurrentUser`; `allowAnonymous` lets everyone through and sets it to `null` (grep it to list every public endpoint). Two things are called auth, and they differ. Void's auth (Better Auth) is the reception: on every request it reads the session and puts the user on `c.var.user`, turning no one away. The `auth` of an endpoint is the gate: it decides who gets through, turns the rest away, and sets `c.var.currentUser`
+  - **Void's auth must be on** for anyone to be signed in. Void turns it on when the app's own source imports `void/auth`, has `auth` in `void.config.ts`, or has an `auth.ts` at the project root; importing void-kit does not count (Void does not read `node_modules`). Write `auth: { providers: ["email"] }` in `void.config.ts`, so it is on in one place you can see (`node_modules/void/docs/guide/auth.md`). While it is off, `requireAuth` throws an error saying so
   - A guard is made only with `createGuard(failures, (c) => ...)`: it returns who the caller is, or throws `fail(...)` with one of the failures it lists. Throwing one it does not list is a 500, since the client's types would not know it. A `CurrentUser` is made only by `getCurrentUser(c)`, so a user made by hand (from a request body) cannot pass for the signed-in one. A handler reads `c.var.currentUser`, never `getCurrentUser`
     ```ts
     // src/auth.ts
@@ -23,7 +24,12 @@ The rules every file keeps. Types and lint stop most of them; the rest are here.
 - **Input validation (400)**: void-kit answers it before the handler, as `VALIDATION_ERROR` with every field that was wrong in `details`, by field name (`{ amount: ["Too small"] }`). A body that is not JSON is the `message`, with `details: {}`
 - **Check order**: the guard (401 → 403) → input validation 400 → NOT_FOUND → FORBIDDEN (a permission that needs the row) → unprocessable → conflict
 - **Replies**: `reply.success(body)` is always 200, and the body is checked against `responses.success` while it runs: a key the schema does not have is left out (a row passed as it is does not send its other columns), and a body that does not match is a 500. Create and update return the thing as its GET shows it; delete returns `{ ok: true }`
-- **IDs**: `as …Id` is written only in the file that declares that `…Id` (its maker, `invoiceId(value)`). Everywhere else calls the maker (`void-kit/no-id-cast`). `UserId` and its maker `userId(value)` come from `void-kit`
+- **IDs**: an ID is a branded string with its maker next to it, in the same file. `as …Id` is written only there; everywhere else calls the maker (`void-kit/no-id-cast`). `UserId` and its maker `userId(value)` come from `void-kit`
+  ```ts
+  // src/invoices.ts
+  export type InvoiceId = string & { readonly __brand: "InvoiceId" };
+  export const invoiceId = (value: string) => value as InvoiceId;
+  ```
 - **Module scope**: keep no changing values there (`let`, a `Map`, an array you push to). One Worker serves concurrent requests, so it would be shared across them (`void-kit/no-module-scope-state`)
 - **Optional input**: `undefined` in input, `null` in the DB. Normalize with `?? null` before writing
 
