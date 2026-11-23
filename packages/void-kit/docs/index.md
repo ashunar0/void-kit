@@ -4,7 +4,7 @@ The rules of a Void app's server routes built with void-kit, for the installed v
 
 Always read:
 
-- [rules.md](rules.md): the rules every file keeps (who may call, failures, check order, IDs, replies, module scope)
+- [rules.md](rules.md): the rules every file keeps (who may call, failures, check order, IDs, replies, module scope, tests)
 
 Read before you…
 

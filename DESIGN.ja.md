@@ -32,10 +32,10 @@ hono-kit の決まり（誰が呼べるか・返し方・失敗の番号）を�
 - **handler は `reply` が作ったものしか返せない**（`Replied` の印）。`c.json(...)` で番号や形を勝手に決めると型で止まる
 - **1 つの URL に `index.ts` 1 つ**（hono-kit と同じ）。Void は `routes/invoices/[id].ts` も `routes/invoices/[id]/index.ts` も同じ URL にするので、置き場所を選ぶ場面ができる。ディレクトリが URL、と決めれば、`_response.ts` や verb のディレクトリ（`[id]/send/`）も同じ形で並ぶ。Void は `_` で始まらない .ts をすべてルートにするので、横に置いたテストが URL になる事故もこの規則で止まる（lint `route-file-is-index`）
 - **lint は型で止まらないものだけ**。Void は HTTP メソッドの名前の export なら何でも endpoint にするので、export の形を決めないと型の決まりが効かない（`route-exports-endpoints`）。hono-kit の `route-responds-200`・`route-replies-through-reply` は `Replied` の型で止まるので持ってこない。`no-clock-outside-app-entry`・`no-new-hono` は、void-kit に `now` も `createApp` も無いので持ってこない
+- **テストは Void のやり方に乗る**。Void のテストは Node で動き（Worker も手元の DB も無い）、バインディングは `vi.mock()` で差し替える、と Void の docs が決めている。hono-kit の「本物の DB に HTTP で当てる」は、アプリと DB を自分で組み立てる hono-kit だから素直に書けた。Void で同じことをすると、void-kit が Hono への載せ替え・DB の差し替え・サインインの道具を抱えることになり、「Void が持っているものは持たない」に反する。テストするのは `src/` のロジックで、endpoint の `auth`・入力・失敗は型と lint で守る。void-kit は docs（rules.md）に書くだけで、道具は足さない
 
 ## 未決
 
 - **失敗の型を Void に提案する**。今は void-kit が `FailureMap` を別に生成している。Void の `RouteMap` が `__failures` も読めば、生成も `fetchResult` も要らなくなる
 - **dev 中の生成**。`void-kit prepare` は `check` と `postinstall` でしか回らないので、dev 中に失敗を足すとエディタの型は `check` まで古い。困ったら Vite の plugin にする
-- **テストの書き方**。hono-kit は「本物の DB に HTTP で当てる」を決まりにしていた。Void のアプリでどう書くか（vp test・D1・サインイン）はまだ決めていない
 - pages の loader / action に同じ決まりを当てるか

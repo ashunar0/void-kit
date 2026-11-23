@@ -32,6 +32,14 @@ The rules every file keeps. Types and lint stop most of them; the rest are here.
   ```
 - **Module scope**: keep no changing values there (`let`, a `Map`, an array you push to). One Worker serves concurrent requests, so it would be shared across them (`void-kit/no-module-scope-state`)
 - **Optional input**: `undefined` in input, `null` in the DB. Normalize with `?? null` before writing
+- **Tests**: written as Void's testing guide says (`node_modules/void/docs/guide/testing.md`): `vp test` runs them in Node.js, with no Worker and no local database, and `vi.mock()` replaces `void/db` and the other bindings. They live in `tests/` or `src/`, never `routes/`. Test the code in `src/` (the queries, the functions that return a `Result`). An endpoint only reads its input, calls that code and replies; its `auth`, input and failures are kept by types and lint. When replacing `void/db`, keep the rest of the module, so `eq` and the other helpers still work:
+  ```ts
+  // tests/invoices.test.ts
+  vi.mock("void/db", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("void/db")>()),
+    db: { select: () => ({ from: () => ({ where: async () => [{ id: "inv_1", amount: 100 }] }) }) },
+  }));
+  ```
 
 ## Do not
 
