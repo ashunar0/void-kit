@@ -49,7 +49,7 @@ Void の上に載せるので、これを足す。
 - **決まった失敗は `Result` で返し、どうしようもないものは throw**（hono-kit と同じ）。どんな失敗がありうるかが型に出て、`ok` で絞り込まないと値が読めない
 - **失敗は domain の `rules.ts` に `{ code, kind, message } as const satisfies Failure` で宣言する**。`kind` から HTTP のステータスを決める表は `toHttp` が 1 か所で持つ。アプリのコードに 409 や 422 を書かない
 - **入口が `throw toHttp(result.error)` で HTTP に変える**。usecase は HTTP を知らないので、cron からもそのまま呼べる。Void は `HTTPException` の文言を `form.error` に入れるので、画面の側の仕組みは足さない
-- **`message` は画面にそのまま出る文言**。そのため、同じ「貸出中」でも除籍用と貸出用で別の失敗になる（未決に書いた）
+- **`message` は画面にそのまま出る文言で、失敗は「その操作ができなかったこと」に付ける**。同じ「貸出中」でも、除籍できない（`BOOK_ON_LOAN`）と借りられない（`BOOK_NOT_AVAILABLE`）は別の失敗で、文言も別。hono-kit の「code は `<THING>_` ＋何が起きたか」と同じ考え方。貸出の試験で AI が「使い回せない」と迷ったのは、docs に書いていなかったから
 
 ## 前の版から捨てたもの
 
@@ -69,6 +69,5 @@ Void の上に載せるので、これを足す。
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
   - テストは Void のやり方（`vi.mock`）に乗る、という決まりを docs に書く
 - **`response` のスキーマとドメインの型の二重**。loader の隣に手で書いている。ページが増えたら、表示用の形を `rules.ts` に置くかを決める
-- **`message` を画面の文言にしたので、失敗を使い回せない**。文言を画面の側で決める形と比べる
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら
 - **Void 1.11 の `@auth-schema` の不具合**。[#901](https://github.com/voidzero-dev/void/pull/901) が入った版が出たら、domains.md の回避策を消す
