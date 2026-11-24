@@ -32,6 +32,7 @@ export const allowAnonymous = guard((): null => null);
 type Slots = ValidatorSlots;
 type Schema = NonNullable<Slots["body"]>;
 type Out<S> = S extends Schema ? NonNullable<S["~standard"]["types"]>["output"] : never;
+type In<S> = S extends Schema ? NonNullable<S["~standard"]["types"]>["input"] : never;
 
 /** The validator slots a config declares */
 type SlotsOf<C> = { [K in keyof C & keyof Slots]: C[K] } & {};
@@ -61,6 +62,12 @@ type Returned<C, R> = C extends { response: infer S extends Schema }
   ? Out<S> | Extract<Awaited<R>, Response>
   : R;
 
+/**
+ * What the handler may return. With a response schema, its input (or a Response, for a redirect or a 404),
+ * so a value that drifted from the schema is underlined where it is returned, not found at run time
+ */
+type MayReturn<C, R> = C extends { response: infer S extends Schema } ? In<S> | Response | Promise<In<S> | Response> : R;
+
 const MEMBER = "voidKit.member";
 
 /**
@@ -70,7 +77,7 @@ const MEMBER = "voidKit.member";
  */
 export const createHandler = <const C extends Config<Member>, Member, R>(
   config: C & { auth: Guard<Member> },
-  handler: (c: CloudContext, input: Input<C, Member>) => R,
+  handler: (c: CloudContext, input: Input<C, Member>) => MayReturn<C, R>,
 ): TypedHandler<SlotsOf<C>, Exclude<Awaited<Returned<C, R>>, Response>> => {
   const auth: MiddlewareHandler = async (c, next) => {
     c.set(MEMBER, await config.auth.check(c as unknown as CloudContext));

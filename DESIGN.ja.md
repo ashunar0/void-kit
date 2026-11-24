@@ -40,6 +40,7 @@ Void の上に載せるので、これを足す。
 - **門番はページ用の `requireMember`（サインインへ飛ばす）と route 用の `requireMemberApi`（401）の 2 つ**。`fetch` はリダイレクトに付いていき、サインイン画面の HTML を受け取ってしまう。`createHandler` は自分が `pages/` と `routes/` のどちらに置かれたかを知らない。リクエストを見て決めると、画面遷移がページのデータを裏で取りに行く仕組み（Void の中身）に頼ることになる
 - **handler の 2 つ目の引数に、入力・`member`・`now` を入れる**。Void は検証した入力を 2 つ目の引数で渡し、`c.req.valid(...)` には登録しない。Hono v5 も 2 つ目で渡す。`member` を `c.var` に置かないのは、Void の `c.var` の型がアプリ全体で 1 つ（`CloudContextVariables`）で、`auth` によって型を変えられないから。2 つ目の引数なら、`requireMember` で `AuthUser`、`allowAnonymous` で `null` と分けられる。`now` は型の問題は無いが、受け取るものを 1 か所に揃えた
 - **`response` は loader と route で必須、action では書かない**。loader の戻り値はそのままページの HTML に埋め込まれ、route の戻り値はそのまま送られる。行をそのまま返すと全部の列が出ていく（会員の行ならメールアドレス）。スキーマに通した値を返すので、宣言に無い項目は落ち、合わなければ 500（型が見逃したバグ）。action は何も返さない（ページを描き直す）かリダイレクトなので要らない。必須かどうかは型では分からない（関数は自分が loader か知らない）ので lint で見る
+- **handler の戻り値の型を `response` のスキーマの入力で縛る**。縛らないと、テーブルの列の型が変わって戻り値とスキーマがずれても、実行して 500 になるまで分からない。スキーマを loader の隣に手で書くのは、ドメインの型との二重になるが、書く量は AI が書くので気にしない（hono-kit と同じ）。困るのはずれが見えないことだけ。TypeScript 7 は、コールバックの戻り値のずれを return ではなく関数の頭で報告する（型引数の無い素直な形でも同じ。設定と handler を 2 回に分けて呼んでも変わらない）。return に赤線を出すには hono-kit の `reply.success(...)` のように戻り値を引数で受ける関数が要るが、Void の上では `reply` を捨てて概念を減らしたので戻さない。メッセージの最後の行がずれた項目を名指しするので、docs でそこを読むように書いた
 - **時計を読むのは `createHandler` だけ**。Void には時計を差し込む口が無く、どこでも `new Date()` を呼べる。貸出の試験では「今日」が `rules.ts`（I/O を持たないはずの所）に入り込んだ。リクエストごとに 1 回読んで `now` で渡し、usecase には日付を引数で渡す。テストで固定するのは vitest の `vi.setSystemTime` に任せ、hono-kit の `clock` のような差し込み口は作らない（アプリを組み立てるのは Void なので）
 - **素の `defineHandler`・`c.json`・時計は lint で止める**。Void はどんな handler でも受け付けるので、`createHandler` を通さずに書けば `auth` も `response` も素通りする。型では止められない
 - **`/` から別のページへ送るだけなら `void.config.ts` の `routing.redirects`**。loader で書くと `response` を書くことになる
@@ -68,6 +69,5 @@ Void の上に載せるので、これを足す。
   - lint `route-file-is-index`。Void は `_` で始まらない `.ts` をすべて route にするので、横に置いたテストが URL になる
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
   - テストは Void のやり方（`vi.mock`）に乗る、という決まりを docs に書く
-- **`response` のスキーマとドメインの型の二重**。loader の隣に手で書いている。ページが増えたら、表示用の形を `rules.ts` に置くかを決める
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら
 - **Void 1.11 の `@auth-schema` の不具合**。[#901](https://github.com/voidzero-dev/void/pull/901) が入った版が出たら、domains.md の回避策を消す

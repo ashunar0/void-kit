@@ -24,7 +24,7 @@ It runs **auth → middleware → input validation → the handler**, then check
 | `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page) |
 | `response` | What the handler returns. Required for a `loader` and for every method of a route; not written for an action, which returns nothing (the page is loaded again) or a redirect |
 
-`response` is there because what a loader returns is put into the page's HTML as it is, and what a route returns is sent as it is: a row passed whole sends every column. The schema's output is what is sent, so a key it does not have is left out, and a value that does not match is a 500 (a bug the types missed). Write it next to the loader, in the same file, and take `Props` from the loader as usual (`InferProps<typeof loader>`): it is the schema's output.
+`response` is there because what a loader returns is put into the page's HTML as it is, and what a route returns is sent as it is: a row passed whole sends every column. The handler's return value is typed by the schema's input, so a value that drifted from it (a column whose type changed) is a type error. The error is reported at the top of the handler, not at the `return`: read its last lines, which name the property. The schema's output is what is sent, so a key it does not have is left out, and a value that still does not match while it runs is a 500 (a bug the types missed, such as a cast with `as`). Write it next to the loader, in the same file, and take `Props` from the loader as usual (`InferProps<typeof loader>`): it is the schema's output.
 
 ## What the handler receives
 
