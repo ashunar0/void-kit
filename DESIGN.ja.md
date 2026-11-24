@@ -25,6 +25,8 @@ Void の上に載せるので、これを足す。
 
 - **npm に出さず、プリセットを写して持つ**（shadcn と同じ）。決まりの文面も形もまだ動くので、パッケージにすると版を上げるたびに追いかけることになる。hono-kit が domains を `presets/` に置いたのと同じ理由。仕組みの側（handlers）は、形が落ち着いたらパッケージに入れる
 - **プリセットは handlers と domains に分ける**。hono-kit の「仕組みはパッケージ、決めごとはアプリ」に合わせた。handlers は仕組み（どのアプリでも同じ）、domains はアプリが選ぶアーキテクチャ。`Result`・`Failure` は domains の usecase も使うが、仕組みなので handlers に置く
+- **`.void/` は名前で読む**（lint）。`@auth-schema` の不具合を避けて `.void/better-auth-schema` をパスで読むと、domains の lint が auth のテーブルだと分からず素通りする（会員の試験で AI が気づいた）
+- **自分のテーブルを持たない domain を認める**。会員の一覧のように、読むものが auth のテーブルだけの domain は `queries.ts` だけを持つ。貸出の queries に置くと「queries は domain の都合で決める」とずれる（会員の試験で AI がこう置いた）
 - **アプリ側では `src/lib/void-kit/` に置く**。アプリ自身の共通の関数（日付の計算など）を置く `src/lib/` と混ざると、どれを触ってよいか分からなくなる（貸出の試験で、AI が日付の計算の置き場所に迷った）
 
 ### createHandler
@@ -65,8 +67,6 @@ Void の上に載せるので、これを足す。
   - lint `route-file-is-index`。Void は `_` で始まらない `.ts` をすべて route にするので、横に置いたテストが URL になる
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
   - テストは Void のやり方（`vi.mock`）に乗る、という決まりを docs に書く
-- **lint で `.void/` への相対 import を止める**。`@auth-schema` を使わずに `.void/better-auth-schema` を直接読むと、domains の lint を素通りする
-- **auth のテーブルだけを読む domain**（会員の一覧）。自分のテーブルを持たない domain を docs で認めるか
 - **domain をまたぐ「確かめてから書く」**。除籍は「貸出中か確かめる → 書く」の 2 段で、その間に貸出が入ると両方通る。domain が分かれているので、条件付きの update 1 本にできない
 - **`response` のスキーマとドメインの型の二重**。loader の隣に手で書いている。ページが増えたら、表示用の形を `rules.ts` に置くかを決める
 - **`message` を画面の文言にしたので、失敗を使い回せない**。文言を画面の側で決める形と比べる

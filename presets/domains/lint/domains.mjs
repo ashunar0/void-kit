@@ -160,6 +160,9 @@ const isLib = (rel) => rel.startsWith("src/lib/");
 
 /** 止める理由。null なら通す */
 const violationOf = (from, fromRel, target, typeOnly, names, root) => {
+  // Void が作る .void/ は、名前（@auth-schema・void/db・void/routes）で読む。パスで読むと、ここの決まりを素通りする
+  if (target.rel?.startsWith(".void/"))
+    return "Void generates .void/: import what it makes by its name (@auth-schema, void/db, void/routes), not by a path into it";
   const to = target.rel ? kindOf(target.rel) : null;
   const fromDomain = from.kind === "table" ? undefined : from.domain;
 
