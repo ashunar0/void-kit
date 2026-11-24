@@ -18,7 +18,7 @@ A test imports the file it tests directly (`./borrowBook`, `./queries`, `../rule
 - **A query with a condition** (a status filter, an order): rows on both sides of the condition
 - **A rule** in `rules.ts`: a plain function, called as it is
 - **Two writes that must not both win** (lending and retiring the same book, a member borrowing a fourth book in two tabs): run them together with `Promise.all` and check that not both succeeded. JavaScript switches between them at every `await`, so the gap between a read and a write is hit, as it would be by two requests. Repeat it a few times in a loop (20) on fresh rows. Every rule of the spec that a write must keep ("at most 3", "one member at a time") deserves one: a check read before the write passes this test only when the write checks it again (docs/domains.md, Writing)
-- A loader, an action or a route is not tested: who may call it, its input and what it sends are held by `createHandler`, its types and the lint (docs/handlers.md). Keep what it does to a call of a usecase or of queries, and test those
+- A loader, an action or a route is not tested: who may call it, its input and what it sends are held by `createHandler`, its types and the lint (docs/handlers.md). Keep what it does to a call of a usecase or of queries, and test those. **When a loader combines results by a rule of the spec** (a book is available when neither retired nor on loan, a member's count of books and overdue flag), that rule is a function of a `rules.ts` (`isAvailable`, `loanSummaryOf`), tested there; what stays in the loader is reading and looking up (a title by id)
 
 ## Data
 

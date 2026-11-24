@@ -57,7 +57,7 @@ Void の上に載せるので、これを足す。
 - **テストは本物の D1 に当てる**。除籍と貸出の正しさは SQL（条件付きの INSERT、部分ユニークインデックス）に乗っているので、`void/db` を中身の無い偽物にすると肝心な所が試せない。Void の docs のとおり `vi.mock("void/db")` で差し替えるが、差し替える先は Miniflare の D1（`vp dev` と同じもの）にマイグレーションを当て、Void の `createDb` で包んだ本物の `db`。Node の SQLite（`node:sqlite` など）も試せるが、ドライバが D1 と違い `db.batch` が無い。Miniflare を devDependency に足して版を Void に合わせる手間はかかる。テストファイルごとに 0.5 秒ほどで立つ
 - **差し替えは `setupFiles` で全部のテストファイルに効かせる**。テストごとに `vi.mock` を書くと長く、書き忘れると本番の `db` を読みに行く
 - **同時に書く 2 つは `Promise.all` で試す**。JavaScript は `await` のたびに入れ替わるので、読んでから書くまでの隙間に相手が入る。直す前の除籍と貸出（確かめてから書く 2 段）は、このテストで毎回落ちた（curl で 60 回投げて 3 回しか出なかったもの）
-- **loader・action・route はテストしない**。誰が呼べるか・入力・送るものは `createHandler` と型と lint が守る。handler は usecase と queries を呼ぶだけにして、そちらをテストする（前の版から同じ考え）
+- **loader・action・route はテストしない**。誰が呼べるか・入力・送るものは `createHandler` と型と lint が守る。handler は usecase と queries を呼ぶだけにして、そちらをテストする（前の版から同じ考え）。loader が仕様の決まり（「貸出可」＝除籍されていない かつ 貸出中でない、会員ごとの冊数と延滞の印）で結果を組み合わせると、そこがテストされずに残った（テストの試験で AI が指摘）。その決まりは `rules.ts` の関数にして、loader は呼ぶだけにする。I/O が無いのでそのままテストでき、同じ印を出すページが複数あっても食い違わない
 - **`routes/`・`pages/` にテストを置かない**（lint）。Void はそこにあるファイルを全部 route かページにする。Void の docs も同じことを言っている。前の版の `route-file-is-index`（1 つの URL に `index.ts` 1 つ）は、置き場所の揺れを止めるものでもあったが、ページは Void の置き方（`pages/books/[id].tsx`）に従うので、テストの事故だけを止める形にした
 
 ## 前の版から捨てたもの
