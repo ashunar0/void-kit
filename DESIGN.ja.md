@@ -1,41 +1,74 @@
 # 設計メモ
 
-void-kit を作る側のメモ。決めたことの理由と、まだ決めていないこと。
+void-kit を作る側のメモ。決めたことの理由と、まだ決めていないこと。アプリを書く人向けの決まりは各プリセットの docs（[handlers](presets/handlers/docs/handlers.md)・[domains](presets/domains/docs/domains.md)）にあり、ここには書かない。
 
 ## 何か
 
-hono-kit の決まり（誰が呼べるか・返し方・失敗の番号）を、Void の server routes の上に載せたもの。hono-kit は Void のルーティングの形を借りてビルド・デプロイ・インフラを抜いたものなので、void-kit はその逆向きで、Void が持っているものは持たない。
+Void を上手に使うためのもの。Void はページ・route・テーブルの置き場所、検証、フォーム、auth、DB を持っている。void-kit が足すのは、Void だけでは書く人任せになっている所（誰が呼べるか、ブラウザに何を送るか、失敗の返し方、業務のルールの置き場所）を決めることだけ。量は hono-kit より少ない。
 
-| | hono-kit | void-kit |
-|---|---|---|
-| ルーティング・登録・AppType | 自前の生成器（`hnk prepare`） | Void（`void prepare`） |
-| 依存（db など） | `createApp({ makeDeps })` | Void の import（`void/db`） |
-| セッション | deps の `sessionUser(headers)` | Void の auth（`c.var.user`） |
-| 入力の欄 | `param` / `query` / `json` | Void に合わせて `params` / `query` / `body` |
-| クライアントの型 | hc（失敗の code まで型に出る） | Void の typed fetch ＋ `fetchResult`（失敗の code まで型に出る） |
+## 考え方
+
+hono-kit の [DESIGN.ja.md](https://github.com/ashunar0/hono-kit/blob/main/DESIGN.ja.md) の「考え方」を引き継ぐ。
+
+- **揃っていることが一番効く**。AI は毎回ゼロから読む
+- **作るものの基準は「それが無いと、どんな間違いが書けてしまうか」**。言えないものは作らない
+- **実例が無いものは足さない**。実験で困った実例が出てから足す
+- **書いた時点で止めて、直し方を示す**
+- **ルールとナレッジを分ける**。別のやり方をすると形が崩れるものだけを持ち、道具の知恵や設計の考え方は外に置く
+
+Void の上に載せるので、これを足す。
+
+- **Void が持っているものは持たない。Void が運ばないものは運ばない**。足すのは、Void の部品を「どこで・どの順で呼ぶか」の決まりだけ
+- **Void が変わったら薄くする**。Hono v5 の `defineHandler` に Void が移れば、`createHandler` の中身はその分減る
 
 ## 決めたことの理由
 
-- **Void の `defineHandler` を包む**。`createEndpoint` は Void の `TypedHandler` を返し、`__validators` と `__output` を型に載せる。Void の codegen はそれを読むので、typed fetch は何もしなくても効く
-- **`withValidator` は使わない**。Void の検証エラーは `{ error: "Validation failed", issues }` で、失敗の形が 2 つになる。自前で検証して、すべての失敗を `{ error: { code, message, details? } }` にそろえる
-- **順番は guard → 入力の検証 → handler**。401 / 403 は ID によらないので、何も漏らさない（hono-kit と同じ）
-- **guard は `createGuard` でしか作れない**。hono-kit は Hono の middleware に型で「`currentUser` を置くこと」を求めていた。void-kit は middleware を経由する理由がないので、「呼んだ人を返す関数」にした。印（brand）があるので、手で書いた object も、誰も弾かずに何も置かない middleware も `auth` に書けない
-- **Void の auth が無効なら、`getCurrentUser` は直し方を書いて throw する**。Void はサインアウト中の `c.var.user` を `null` に、auth が無効なときは何も置かない（`undefined`）。黙って `null` 扱いにすると、設定を忘れたアプリは全部の `requireAuth` が 401 になって理由が分からない。`allowAnonymous` は user を読まないので、公開の endpoint だけのアプリは auth なしで動く
-- **雛形は持たず、`void-kit init` で足す**。アプリの土台（UI フレームワーク・DB・ツール）は `void init` が作る。void-kit が書くのは `.oxlintrc.json`・`AGENTS.md` の印つきブロック（Void と同じ `<!--injected-by-...-->` の形。2 回打っても同じ）・`check` の script だけで、アプリのコードには触らない。Void の雛形の `routes/api/hello.ts` は、`check` の lint が直し方つきで止める
-- **`check` はパッケージが持つ**（`void-kit check`）。中身（void prepare → 型検査 → lint → テスト、落ちても最後まで回して失敗をまとめる）はどのアプリでも同じなので、hono-kit のように `scripts/check.mjs` をアプリに写さない。oxlint は void-kit の依存にして、アプリで入れなくて済むようにした。テストの道具はアプリが選ぶので、`test` の script があれば回すだけ
-- **npm には dist（`.js` + `.d.ts`）で出す**。`src/*.ts` をそのまま配ると、node_modules の `.ts` には `skipLibCheck` が効かないので、どのアプリも `allowImportingTsExtensions` を足すまで型検査が落ちた（請求書アプリの試験で分かった）。workspace の中では `src` を、npm では `publishConfig` で `dist` を指す。tsc は `.d.ts` の import を `.ts` のまま残すので、`scripts/build.mjs` で `.js` に直す
-- **Void の auth があっても `auth` 欄は残す**。Void はアプリのソースの import（`void/auth`）や `void.config.ts` の `auth` から auth を使うと判断し、全部のリクエストにセッションを読む middleware を差し込む。ただしそれは受付（`c.var.user` を置くだけで誰も弾かない）で、`auth` 欄は門番（通すか決める）。欄を消すと、書き忘れと「わざと公開」が区別できず、`currentUser` の型も付かない。名前が Void の auth と重なって紛らわしいので、docs で書き分ける（`access` などへの改名は、困った実例が続いたら考える）
-- **`init` は Void の auth を有効にしない**（知らせるだけ）。Void は `node_modules` を読まないので、void-kit の import では有効にならない。`void.config.ts` は Void が生成して人が育てるファイルなので、void-kit は触らない。公開の endpoint だけのアプリもある
-- **guard は返しうる失敗を宣言する**（`createGuard([Unauthorized], check)`）。クライアントの型に載せるため。宣言していない失敗を投げたら 500 にして、型と実際がずれないようにした（はじめは読む場所が無いので宣言させていなかった）
-- **失敗の型は `__failures` で運び、`void-kit prepare` が表にする**。Void の typed fetch は生成した `RouteMap` から成功の型だけを引き、失敗を足す口が無い。`__output` と同じく型だけの印を endpoint に付け、`routes/` を読んで「パス × メソッド → 失敗」の表（`src/void-kit.gen.d.ts`、`FailureMap` を拡張する）を書く。鍵は Void の `RouteMap` と同じ（`/invoices/[id]`）。書き先が `.void/` でないのは、Void が知らないファイルを消すから。lint で入口が `index.ts` と `export const GET = createEndpoint(...)` に決まっているので、読み取りは正規表現で足りる
-- **クライアントは `fetchResult`**（`void-kit/client`）。Void の `fetch` を包み、引数は同じ。宣言した形の失敗（`{ error: { code, message } }`）だけを `err` にして、それ以外は throw のまま。`FetchError` は `instanceof` で見ない（Vite が依存をまとめるとクラスが二重になりうる）
-- **handler は `reply` が作ったものしか返せない**（`Replied` の印）。`c.json(...)` で番号や形を勝手に決めると型で止まる
-- **1 つの URL に `index.ts` 1 つ**（hono-kit と同じ）。Void は `routes/invoices/[id].ts` も `routes/invoices/[id]/index.ts` も同じ URL にするので、置き場所を選ぶ場面ができる。ディレクトリが URL、と決めれば、`_response.ts` や verb のディレクトリ（`[id]/send/`）も同じ形で並ぶ。Void は `_` で始まらない .ts をすべてルートにするので、横に置いたテストが URL になる事故もこの規則で止まる（lint `route-file-is-index`）
-- **lint は型で止まらないものだけ**。Void は HTTP メソッドの名前の export なら何でも endpoint にするので、export の形を決めないと型の決まりが効かない（`route-exports-endpoints`）。hono-kit の `route-responds-200`・`route-replies-through-reply` は `Replied` の型で止まるので持ってこない。`no-clock-outside-app-entry`・`no-new-hono` は、void-kit に `now` も `createApp` も無いので持ってこない
-- **テストは Void のやり方に乗る**。Void のテストは Node で動き（Worker も手元の DB も無い）、バインディングは `vi.mock()` で差し替える、と Void の docs が決めている。hono-kit の「本物の DB に HTTP で当てる」は、アプリと DB を自分で組み立てる hono-kit だから素直に書けた。Void で同じことをすると、void-kit が Hono への載せ替え・DB の差し替え・サインインの道具を抱えることになり、「Void が持っているものは持たない」に反する。テストするのは `src/` のロジックで、endpoint の `auth`・入力・失敗は型と lint で守る。void-kit は docs（rules.md）に書くだけで、道具は足さない
+- **npm に出さず、プリセットを写して持つ**（shadcn と同じ）。決まりの文面も形もまだ動くので、パッケージにすると版を上げるたびに追いかけることになる。hono-kit が domains を `presets/` に置いたのと同じ理由。仕組みの側（handlers）は、形が落ち着いたらパッケージに入れる
+- **プリセットは handlers と domains に分ける**。hono-kit の「仕組みはパッケージ、決めごとはアプリ」に合わせた。handlers は仕組み（どのアプリでも同じ）、domains はアプリが選ぶアーキテクチャ。`Result`・`Failure` は domains の usecase も使うが、仕組みなので handlers に置く
+- **アプリ側では `src/lib/void-kit/` に置く**。アプリ自身の共通の関数（日付の計算など）を置く `src/lib/` と混ざると、どれを触ってよいか分からなくなる（貸出の試験で、AI が日付の計算の置き場所に迷った）
+
+### createHandler
+
+- **loader・action・route をすべて 1 つの関数で作る**。Void は全部に同じ `defineHandler` を使うので、こちらも置き場所で分けない
+- **形は hono-kit の `createEndpoint` と同じ「設定のオブジェクト＋ async の handler」**。Void の `withValidator` も Hono v5 の `defineHandler` も、設定と handler を別々に受け取る（2 回呼ぶ）形だが、それは handler の前に middleware をいくつでも並べるため。`createHandler` では門番は `auth` 欄に入るので、分ける理由が無い
+- **設定の欄は `auth`（必須）・`middleware`・`body` / `query` / `params`・`response`**。入力の欄は Void の名前に合わせた（Hono v5 は `param` / `json` など。Void が v5 に移ったら合わせる）。header・cookie は実例が無いので持たない。`middleware` は Void が handler の前に 5 個までしか並べられないので、`auth` を除いて 4 個まで（型で止める）
+- **走る順は auth → middleware → 検証 → handler**。Void の handler の中で `requireAuth` を呼ぶと検証より後になり、サインインしていない人の `?status=bogus` が 400 になった（サインインへ飛ぶべき所）。Void は `defineHandler(middleware, defineHandler.withValidator(...)(handler))` の形で、middleware を検証より先に走らせ、型（`useForm`・`InferProps`）も保つ。`createHandler` はこれを組み立てる。Void の内部ではなく、公開されている形の上に作っている
+- **auth を必須にする**。Void の `requireAuth` は呼び忘れても止まらない。必須の欄にして、書き忘れと「わざと公開」（`allowAnonymous`）を見分ける（hono-kit と同じ）。いったんは「global middleware で全部閉じる」にしたが、公開のページや役割（管理者だけ）がパスの一覧と handler に散らばるのでやめた
+- **門番はページ用の `requireMember`（サインインへ飛ばす）と route 用の `requireMemberApi`（401）の 2 つ**。`fetch` はリダイレクトに付いていき、サインイン画面の HTML を受け取ってしまう。`createHandler` は自分が `pages/` と `routes/` のどちらに置かれたかを知らない。リクエストを見て決めると、画面遷移がページのデータを裏で取りに行く仕組み（Void の中身）に頼ることになる
+- **handler の 2 つ目の引数に、入力・`member`・`now` を入れる**。Void は検証した入力を 2 つ目の引数で渡し、`c.req.valid(...)` には登録しない。Hono v5 も 2 つ目で渡す。`member` を `c.var` に置かないのは、Void の `c.var` の型がアプリ全体で 1 つ（`CloudContextVariables`）で、`auth` によって型を変えられないから。2 つ目の引数なら、`requireMember` で `AuthUser`、`allowAnonymous` で `null` と分けられる。`now` は型の問題は無いが、受け取るものを 1 か所に揃えた
+- **`response` は loader と route で必須、action では書かない**。loader の戻り値はそのままページの HTML に埋め込まれ、route の戻り値はそのまま送られる。行をそのまま返すと全部の列が出ていく（会員の行ならメールアドレス）。スキーマに通した値を返すので、宣言に無い項目は落ち、合わなければ 500（型が見逃したバグ）。action は何も返さない（ページを描き直す）かリダイレクトなので要らない。必須かどうかは型では分からない（関数は自分が loader か知らない）ので lint で見る
+- **時計を読むのは `createHandler` だけ**。Void には時計を差し込む口が無く、どこでも `new Date()` を呼べる。貸出の試験では「今日」が `rules.ts`（I/O を持たないはずの所）に入り込んだ。リクエストごとに 1 回読んで `now` で渡し、usecase には日付を引数で渡す。テストで固定するのは vitest の `vi.setSystemTime` に任せ、hono-kit の `clock` のような差し込み口は作らない（アプリを組み立てるのは Void なので）
+- **素の `defineHandler`・`c.json`・時計は lint で止める**。Void はどんな handler でも受け付けるので、`createHandler` を通さずに書けば `auth` も `response` も素通りする。型では止められない
+- **`/` から別のページへ送るだけなら `void.config.ts` の `routing.redirects`**。loader で書くと `response` を書くことになる
+
+### 失敗
+
+- **決まった失敗は `Result` で返し、どうしようもないものは throw**（hono-kit と同じ）。どんな失敗がありうるかが型に出て、`ok` で絞り込まないと値が読めない
+- **失敗は domain の `rules.ts` に `{ code, kind, message } as const satisfies Failure` で宣言する**。`kind` から HTTP のステータスを決める表は `toHttp` が 1 か所で持つ。アプリのコードに 409 や 422 を書かない
+- **入口が `throw toHttp(result.error)` で HTTP に変える**。usecase は HTTP を知らないので、cron からもそのまま呼べる。Void は `HTTPException` の文言を `form.error` に入れるので、画面の側の仕組みは足さない
+- **`message` は画面にそのまま出る文言**。そのため、同じ「貸出中」でも除籍用と貸出用で別の失敗になる（未決に書いた）
+
+## 前の版から捨てたもの
+
+最初の void-kit（2026-11-23 まで）は、routes 用の `createEndpoint` と、失敗の型をクライアントに運ぶ仕組みを持っていた。pages の loader / action で書くと Void の仕組みと二重になるので、0 から考え直した。
+
+- **`reply`（`reply.success` / `reply.failure`）と `Replied` の印**。hono-kit で `reply` を作ったのは、Hono の RPC が return した値からクライアントの型を作り、throw した失敗は型に出ないから。Void のページでは、失敗はそもそもクライアントの型に載らない（`form.error` に届くのは `status` と `message` だけ）。届け先の無い型を運ぶ仕組みは要らない
+- **`__failures`・`void-kit prepare`・`fetchResult`**（失敗の code を typed fetch の型に載せる）。同じ理由。route を `fetch` で呼ぶ実例が出たら考え直す
+- **自前の入力の検証**。失敗の形を `{ error: { code, message } }` に揃えるためだったが、ページでは Void の検証でないと `form.errors` が効かない
+- **`void-kit init`・`void-kit check`・npm 向けのビルド**。プリセットを写して持つ形にしたので要らない
 
 ## 未決
 
-- **失敗の型を Void に提案する**。今は void-kit が `FailureMap` を別に生成している。Void の `RouteMap` が `__failures` も読めば、生成も `fetchResult` も要らなくなる
-- **dev 中の生成**。`void-kit prepare` は `check` と `postinstall` でしか回らないので、dev 中に失敗を足すとエディタの型は `check` まで古い。困ったら Vite の plugin にする
-- pages の loader / action に同じ決まりを当てるか
+- **前の版から持ってくる候補**
+  - `guard` に印を付けて、手で書いた `{ check }` を `auth` に置けないようにする
+  - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
+  - lint `route-file-is-index`。Void は `_` で始まらない `.ts` をすべて route にするので、横に置いたテストが URL になる
+  - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
+  - テストは Void のやり方（`vi.mock`）に乗る、という決まりを docs に書く
+- **lint で `.void/` への相対 import を止める**。`@auth-schema` を使わずに `.void/better-auth-schema` を直接読むと、domains の lint を素通りする
+- **auth のテーブルだけを読む domain**（会員の一覧）。自分のテーブルを持たない domain を docs で認めるか
+- **domain をまたぐ「確かめてから書く」**。除籍は「貸出中か確かめる → 書く」の 2 段で、その間に貸出が入ると両方通る。domain が分かれているので、条件付きの update 1 本にできない
+- **`response` のスキーマとドメインの型の二重**。loader の隣に手で書いている。ページが増えたら、表示用の形を `rules.ts` に置くかを決める
+- **`message` を画面の文言にしたので、失敗を使い回せない**。文言を画面の側で決める形と比べる
+- **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら
+- **Void 1.11 の `@auth-schema` の不具合**。[#901](https://github.com/voidzero-dev/void/pull/901) が入った版が出たら、domains.md の回避策を消す

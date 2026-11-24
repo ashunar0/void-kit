@@ -4,4 +4,3 @@ dist
 .wrangler
 *.tsbuildinfo
 .DS_Store
-void-kit.gen.d.ts

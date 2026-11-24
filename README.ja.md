@@ -1,7 +1,6 @@
 # void-kit
 
-[Void](https://void.cloud) の server routes（`routes/`）で毎回気をつけることを、型と lint で書いた時点に止める。気をつけることは、誰が呼べるか・何を返すか・失敗の番号・URL とファイルの対応の 4 つ。
-止めたときは直し方まで示すので、AI が自分で直せる。失敗の code はクライアントの型にまで届く。
+[Void](https://void.cloud) のアプリのサーバー側を、誰が書いても（AI でも）同じ形にするための決まり。決めるのは、loader・action・route を誰が呼べるか、何を送ってよいか、決まった失敗をどう返すか、業務のルールをどこに置くか。確かめられる決まりは、書いた時点で型か lint が止めて、直し方まで示す。
 
 > 非公式。Void（VoidZero）とは関係ない。
 
@@ -9,58 +8,44 @@
 
 ## なぜ
 
-AI にバックエンドを書かせると、毎回少しずつ揺れる。揺れるのは、URL とファイルの対応・失敗の返し方・権限の確かめ方。
-void-kit は形を先に決め、外れたものを止める。
+AI にバックエンドを書かせると、細かいところが毎回揺れる。ページでサインインを確かめるか、loader がブラウザに何を送るか、失敗をどうフォームに届けるか、ルールをどこに置くか。Void はページ・route・テーブルの置き場所は決めるが、これらは書く人に任せている。void-kit はそれを先に決めて、外れたものを止める。
 
-[hono-kit](https://github.com/ashunar0/hono-kit) の Void 版。hono-kit は Void のルーティングの形を借りて、ビルド・デプロイ・インフラを抜いたもの。void-kit はその逆向きで、Void が持っているもの（ルーティング・DB・auth・typed fetch・デプロイ）はそのまま使い、endpoint の書き方の決まりだけを載せる。
+[hono-kit](https://github.com/ashunar0/hono-kit) の Void 版で、足すものは hono-kit より少ない。Void が持っているもの（ルーティング・検証・フォーム・auth・DB・デプロイ）はそのまま使い、void-kit は Void の部品を「どこで・どの順で呼ぶか」だけを決める。
 
 ```ts
-// routes/invoices/[id]/index.ts
-export const GET = createEndpoint(
-  {
-    auth: requireAuth,
-    request: { params: z.object({ id: z.string() }) },
-    responses: { success: invoiceSchema, failures: [NotFound] },
-  },
-  async (c, { params }, reply) => {
-    const invoice = await findInvoice(c.var.currentUser.id, params.id);
-    if (invoice === undefined) return reply.failure(NotFound.code);
-    return reply.success(invoice);
+// pages/books/[id].server.ts
+export const loader = createHandler(
+  { auth: requireMember, response: propsSchema }, // 誰が呼べるか、ブラウザに何を送ってよいか
+  async (c, { member, now }) => {
+    // ...
   },
 );
+
+export const actions = {
+  borrow: createHandler({ auth: requireMember }, async (c, { member, now }) => {
+    const result = await borrowBook(member.id, Number(c.req.param("id")), todayInJapan(now));
+    if (!result.ok) throw toHttp(result.error); // 文言は form.error に出る
+  }),
+};
 ```
 
-```ts
-// クライアント
-const result = await fetchResult("/invoices/[id]", { params: { id } });
-if (!result.ok) result.error.code; // "NOT_FOUND" | "UNAUTHORIZED" | "VALIDATION_ERROR"
-```
+## プリセット
 
-## 始め方
+void-kit は npm のパッケージではない。[shadcn/ui](https://ui.shadcn.com) と同じく、ファイルをアプリに写して自分のものとして持つ。何を写して lint をどう有効にするかは、各プリセットの README に書いてある。
 
-まだ npm に出していない。出したら、Void のアプリでこう使う:
+| プリセット | 決めること |
+| --- | --- |
+| [handlers](presets/handlers/README.md) | loader・action・route はすべて `createHandler` で作る。`auth`（必須）は入力の検証より先に走り、handler は呼んだ人（`member`）と時刻（`now`）を受け取る。loader と route の戻り値は `response` のスキーマで確かめる。決まった失敗は `Result` で返し、`toHttp` で HTTP に変える |
+| [domains](presets/domains/README.md) | 業務のルールの置き場所（`src/domains/<noun>/`）、どのファイルが何を import してよいか、domain 同士の呼び方。handlers が要る |
 
-```sh
-npx void init
-npm install void-kit
-npx void-kit init
-npm run check
-```
+AI に書かせるときは、`AGENTS.md` からプリセットの docs をたどれるようにして、「`tsc` と lint を通して」と頼めばよい。
 
-`void-kit init` は、`.oxlintrc.json`・`AGENTS.md` のブロック・`check` と `postinstall` の script を足す。アプリのコードには触らない。
+## 状態
 
-`void-kit check` は、`void prepare`・失敗の型の生成・型検査・lint・テストを回して、最後に失敗を一覧で出す。AI には「`check` を通して」と言えば足りる。
+- 0.x で、形はまだ動く。別の AI に docs だけで小さなアプリを書かせて、迷った所を集めながら直している
+- Void 1.11・React・D1・zod で試している
+- 決めたことの理由と未決のこと: [DESIGN.ja.md](DESIGN.ja.md)
 
-## 決まり
-
-決まりはパッケージの中にあり、インストールした版と一緒に変わる。入口は `node_modules/void-kit/docs/index.md`（[GitHub](packages/void-kit/docs/index.md)）。`AGENTS.md` のブロックは、そこを指しているだけ。
-
-## 範囲
-
-- Void の server routes だけ。pages の loader / action はまだ
-- 検証は Standard Schema を満たすものなら何でも（zod で確かめた）
-- 0.x。実プロダクトで使いながら形を変える。決めたことの理由と未決は [DESIGN.ja.md](DESIGN.ja.md)
-
-## License
+## ライセンス
 
 MIT

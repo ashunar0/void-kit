@@ -1,9 +1,0 @@
-{
-  "name": "void-kit-repo",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "pnpm -r --if-present check",
-    "test": "pnpm -r --if-present test"
-  }
-}
