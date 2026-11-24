@@ -122,11 +122,28 @@ const noClock = {
   },
 };
 
+/** routes/ と pages/ に置いたファイルは、Void が route やページにする。テストもそうなる */
+const noTestsInRoutes = {
+  create(context) {
+    const rel = relativeOf(context.filename, context.cwd);
+    if (!isTest(rel) || !(rel.startsWith("routes/") || rel.startsWith("pages/"))) return {};
+    return {
+      Program(node) {
+        context.report({
+          node,
+          message: `Void makes every file under routes/ and pages/ a route or a page, a test too: move ${rel} next to the code it tests in src/, or into tests/. ${MORE.replace("handlers.md", "testing.md")}`,
+        });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "handlers" },
   rules: {
     "through-create-handler": throughCreateHandler,
     "no-json-response": noJsonResponse,
     "no-clock": noClock,
+    "no-tests-in-routes": noTestsInRoutes,
   },
 };

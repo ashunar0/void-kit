@@ -52,6 +52,14 @@ Void の上に載せるので、これを足す。
 - **入口が `throw toHttp(result.error)` で HTTP に変える**。usecase は HTTP を知らないので、cron からもそのまま呼べる。Void は `HTTPException` の文言を `form.error` に入れるので、画面の側の仕組みは足さない
 - **`message` は画面にそのまま出る文言で、失敗は「その操作ができなかったこと」に付ける**。同じ「貸出中」でも、除籍できない（`BOOK_ON_LOAN`）と借りられない（`BOOK_NOT_AVAILABLE`）は別の失敗で、文言も別。hono-kit の「code は `<THING>_` ＋何が起きたか」と同じ考え方。貸出の試験で AI が「使い回せない」と迷ったのは、docs に書いていなかったから
 
+### テスト
+
+- **テストは本物の D1 に当てる**。除籍と貸出の正しさは SQL（条件付きの INSERT、部分ユニークインデックス）に乗っているので、`void/db` を中身の無い偽物にすると肝心な所が試せない。Void の docs のとおり `vi.mock("void/db")` で差し替えるが、差し替える先は Miniflare の D1（`vp dev` と同じもの）にマイグレーションを当て、Void の `createDb` で包んだ本物の `db`。Node の SQLite（`node:sqlite` など）も試せるが、ドライバが D1 と違い `db.batch` が無い。Miniflare を devDependency に足して版を Void に合わせる手間はかかる。テストファイルごとに 0.5 秒ほどで立つ
+- **差し替えは `setupFiles` で全部のテストファイルに効かせる**。テストごとに `vi.mock` を書くと長く、書き忘れると本番の `db` を読みに行く
+- **同時に書く 2 つは `Promise.all` で試す**。JavaScript は `await` のたびに入れ替わるので、読んでから書くまでの隙間に相手が入る。直す前の除籍と貸出（確かめてから書く 2 段）は、このテストで毎回落ちた（curl で 60 回投げて 3 回しか出なかったもの）
+- **loader・action・route はテストしない**。誰が呼べるか・入力・送るものは `createHandler` と型と lint が守る。handler は usecase と queries を呼ぶだけにして、そちらをテストする（前の版から同じ考え）
+- **`routes/`・`pages/` にテストを置かない**（lint）。Void はそこにあるファイルを全部 route かページにする。Void の docs も同じことを言っている。前の版の `route-file-is-index`（1 つの URL に `index.ts` 1 つ）は、置き場所の揺れを止めるものでもあったが、ページは Void の置き方（`pages/books/[id].tsx`）に従うので、テストの事故だけを止める形にした
+
 ## 前の版から捨てたもの
 
 最初の void-kit（2026-11-23 まで）は、routes 用の `createEndpoint` と、失敗の型をクライアントに運ぶ仕組みを持っていた。pages の loader / action で書くと Void の仕組みと二重になるので、0 から考え直した。
@@ -66,8 +74,6 @@ Void の上に載せるので、これを足す。
 - **前の版から持ってくる候補**
   - `guard` に印を付けて、手で書いた `{ check }` を `auth` に置けないようにする
   - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
-  - lint `route-file-is-index`。Void は `_` で始まらない `.ts` をすべて route にするので、横に置いたテストが URL になる
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
-  - テストは Void のやり方（`vi.mock`）に乗る、という決まりを docs に書く
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら
 - **Void 1.11 の `@auth-schema` の不具合**。[#901](https://github.com/voidzero-dev/void/pull/901) が入った版が出たら、domains.md の回避策を消す
