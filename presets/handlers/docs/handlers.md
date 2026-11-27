@@ -37,6 +37,8 @@ export const requireAdmin = guard((c) => {
 });
 ```
 
+A 403 from a loader or an action is shown by `pages/_error.tsx` (Void's error page, given `error.status` and `error.message`). Without one, a page answers with plain text. The app has one as soon as any guard refuses.
+
 ## What the handler receives
 
 `(c, { body, query, params, member, now })`:
