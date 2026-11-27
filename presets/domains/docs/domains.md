@@ -42,8 +42,6 @@ A page component (`pages/**` that is not `.server`) runs in the browser too: it 
 
 Keep `db/schema.ts` out: with it, Void reads `@schema` as that one file and `@schema/<domain>` does not resolve. The auth tables (`@auth-schema`) belong to no domain: any domain's queries may read them, by `@auth-schema`, never by a path into `.void/`. A domain whose only data is there (the list of members) owns no table: it has its `queries.ts` (and `index.ts`, `rules.ts` when it needs them) and no `db/schema/<noun>.ts`.
 
-> **Known issue in Void 1.11** (remove once a release has [voidzero-dev/void#901](https://github.com/voidzero-dev/void/pull/901)): `@auth-schema` passes the typecheck but the dev server stops with `Cannot find module '@auth-schema'`. Until then, add it in both places: `resolve: { alias: { "@auth-schema": fileURLToPath(new URL("./.void/better-auth-schema.ts", import.meta.url)) } }` in `vite.config.ts`, and `"@auth-schema": ["./.void/better-auth-schema.ts"]` in `compilerOptions.paths` of `tsconfig.json`. A `paths` there replaces the one from `.void/tsconfig.json`, so copy that file's entries (`void/db`, `@schema`, `@schema/*`, `void/routes`) next to it
-
 A value of another domain is copied into your own table only to keep it as it was at that time (an invoice line keeps the item's name and price), or when it never changes and reading it from the owner would go through the owner's rows every time.
 
 ## Between domains

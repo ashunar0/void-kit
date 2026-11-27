@@ -43,7 +43,7 @@ With AI, point `AGENTS.md` at the preset docs and ask it to make `tsc` and the l
 ## Status
 
 - 0.x, and the shape still moves. It is tried by having another AI build a small app from the docs alone and collecting where it hesitated
-- Tested on Void 1.11 with React, D1 and zod
+- Tested on Void 1.12 with React, D1 and zod
 - Decisions and open questions: [DESIGN.ja.md](DESIGN.ja.md) (Japanese)
 
 ## License

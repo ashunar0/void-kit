@@ -76,4 +76,3 @@ Void の上に載せるので、これを足す。
   - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら
-- **Void 1.11 の `@auth-schema` の不具合**。[#901](https://github.com/voidzero-dev/void/pull/901) が入った版が出たら、domains.md の回避策を消す

@@ -43,7 +43,7 @@ AI に書かせるときは、`AGENTS.md` からプリセットの docs をた�
 ## 状態
 
 - 0.x で、形はまだ動く。別の AI に docs だけで小さなアプリを書かせて、迷った所を集めながら直している
-- Void 1.11・React・D1・zod で試している
+- Void 1.12・React・D1・zod で試している
 - 決めたことの理由と未決のこと: [DESIGN.ja.md](DESIGN.ja.md)
 
 ## ライセンス
