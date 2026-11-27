@@ -41,6 +41,7 @@ void-kit は npm のパッケージではない。[shadcn/ui](https://ui.shadcn.
 | --- | --- |
 | [handlers](presets/handlers/README.md) | loader・action・route はすべて `createHandler` で作る。`auth`（必須）は入力の検証より先に走り、handler は呼んだ人（`member`）と時刻（`now`）を受け取る。loader と route の戻り値は `response` のスキーマで確かめる。決まった失敗は `Result` で返し、`toHttp` で HTTP に変える |
 | [domains](presets/domains/README.md) | 業務のルールの置き場所（`src/domains/<noun>/`）、どのファイルが何を import してよいか、domain 同士の呼び方。handlers が要る |
+| [pages](presets/pages/README.md) | UI の置き方（Dual-Axis Architecture）。ページは必ずディレクトリで、`index.tsx` は画面を描くだけ。画面と部品は `src/components/screens/`・`widgets/`・`shared/` に置く。domains と一緒に使う |
 
 AI に書かせるときは、`AGENTS.md` からプリセットの docs をたどれるようにして、「`tsc` と lint を通して」と頼めばよい。
 

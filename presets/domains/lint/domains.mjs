@@ -13,7 +13,7 @@ const isTest = (rel) => /\.(test|typetest|spec)\.tsx?$/.test(rel);
 
 /**
  * ファイルの種類。domain なら { kind: "index" | "rules" | "queries" | "mutations" | "usecases" | "usecases-shared", domain }、
- * Void が呼ぶ入口なら { kind: "entry" }、ページのコンポーネント（ブラウザでも動く）なら { kind: "component" }、
+ * Void が呼ぶ入口なら { kind: "entry" }、ページと画面のコンポーネント（ブラウザでも動く。pages/ の .server でないもの、src/components/）なら { kind: "component" }、
  * 表なら { kind: "table", domain }（db/schema/index.ts は domain なし）。どれでもなければ null
  */
 const kindOf = (rel) => {
@@ -26,7 +26,7 @@ const kindOf = (rel) => {
   if (table) return { kind: "table", domain: table[1] };
   if (/^pages\/.*\.server\.[jt]sx?$/.test(rel)) return { kind: "entry" };
   if (/^(routes|crons|queues|middleware)\//.test(rel)) return { kind: "entry" };
-  if (rel.startsWith("pages/")) return { kind: "component" };
+  if (rel.startsWith("pages/") || rel.startsWith("src/components/")) return { kind: "component" };
   return null;
 };
 

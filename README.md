@@ -41,6 +41,7 @@ void-kit is not an npm package. Like [shadcn/ui](https://ui.shadcn.com), you cop
 | --- | --- |
 | [handlers](presets/handlers/README.md) | Every loader, action and route is built with `createHandler`: `auth` (required) runs before the input is validated, the handler receives who is calling (`member`) and the time (`now`), and what a loader or route returns is checked against its `response` schema. An expected failure is a `Result`, turned into HTTP by `toHttp` |
 | [domains](presets/domains/README.md) | Where the business rules go (`src/domains/<noun>/`), which file may import which, and how domains call each other. Needs handlers |
+| [pages](presets/pages/README.md) | How the UI is laid out, after Dual-Axis Architecture: every page is a directory whose `index.tsx` only renders its screen, and screens and parts live in `src/components/screens/`, `widgets/` and `shared/`. Goes with domains |
 
 With AI, point `AGENTS.md` at the preset docs and ask it to make `tsc` and the lint pass.
 

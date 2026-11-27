@@ -34,7 +34,7 @@ What it may put together itself is only a read that makes what it returns: a loa
 
 What goes in `queries.ts` is decided by what the domain needs, not by what a page shows. Reading an invoice with its payments together belongs there when a usecase decides from it (how much is still unpaid); when only a page shows them together, the loader combines two queries.
 
-A page component (`pages/**` that is not `.server`) runs in the browser too: it imports a domain's `rules.ts` and types only, never an `index.ts`, which would pull the queries into the browser.
+A page component (`pages/**` that is not `.server`, and the screens and parts in `src/components/`, docs/pages.md) runs in the browser too: it imports a domain's `rules.ts` and types only, never an `index.ts`, which would pull the queries into the browser.
 
 ## Tables
 
@@ -89,7 +89,7 @@ A failure the rules expect (not found, already sent, on loan) is a value, return
 | `queries.ts`, `mutations.ts` | `void/db`, `@schema/<its own domain>`, `@auth-schema`, its own domain's files, another domain's `rules.ts`, `src/lib` | `@schema`, another domain's tables, another domain's `index.ts` and other files, its own usecases |
 | `usecases/*`                 | its own domain's queries / mutations / rules / `usecases/_*`, another domain's `index.ts` and `rules.ts`, `src/lib`, `void/db` for `db.batch` | drizzle, `@schema` values, another usecase of its own domain (share through `usecases/_*`) |
 | entry points                 | a domain's `index.ts` and `rules.ts`, `src/lib`, types from `@schema`                                          | a domain's other files, `db` from `void/db`, `@schema` values, drizzle                         |
-| page components              | a domain's `rules.ts`, `src/lib`, types                                                                        | any `index.ts`, a domain's other files, `void/db`, `@schema` values                            |
+| page components, `src/components/**` | a domain's `rules.ts`, `src/lib`, types                                                                        | any `index.ts`, a domain's other files, `void/db`, `@schema` values                            |
 | `db/**`                      | a domain's `rules.ts`, so a table can use a list of values (`taxRates`), `src/lib`                             | any `index.ts`, a domain's other files                                                          |
 | `src/lib/**`                 | other files in `src/lib`, packages                                                                             | any domain, `db/**`                                                                             |
 | anything else                | a domain's `index.ts` and `rules.ts`, `src/lib`                                                                | a domain's other files                                                                          |
