@@ -54,7 +54,7 @@ A value of another domain is copied into your own table only to keep it as it wa
    2. If both need a word, move it into a domain of its own with rules only, below both. Invoices and quotes both need the list of tax rates, so it is the `tax` domain. A word of this app's business (a tax rate) is a domain; what any app has (yen, dates) goes in the shared place, `src/lib/` (the app's own files; `src/lib/void-kit/` holds void-kit's and is not edited)
    3. If neither works, the two were one domain: put them together
 
-   Once fixed, the later one reads the earlier one (a payment reads its invoice), never the other way
+   Once fixed, the later one reads the earlier one (a payment reads its invoice), never the other way. Which is earlier is decided by who reads and calls whom, not by who keeps whose id: the ledger keeps a circle's id on its accounts, yet making a circle calls the ledger's usecase to open its ledger, and the ledger never reads the circle. Then the circle is the later one
 
 `rules.ts` imports nothing but a schema library (zod) and other rules, so anyone may read it. `index.ts` publishes queries, so a file below them (`rules.ts`, `db/**`) that read an `index.ts` would import its way round (`db/schema/invoice.ts` → `tax/index` → `tax/queries` → `db/schema/tax.ts`).
 

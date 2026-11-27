@@ -39,6 +39,9 @@ Void の上に載せるので、これを足す。
 - **auth を必須にする**。Void の `requireAuth` は呼び忘れても止まらない。必須の欄にして、書き忘れと「わざと公開」（`allowAnonymous`）を見分ける（hono-kit と同じ）。いったんは「global middleware で全部閉じる」にしたが、公開のページや役割（管理者だけ）がパスの一覧と handler に散らばるのでやめた
 - **門番はページ用の `requireMember`（サインインへ飛ばす）と route 用の `requireMemberApi`（401）の 2 つ**。`fetch` はリダイレクトに付いていき、サインイン画面の HTML を受け取ってしまう。`createHandler` は自分が `pages/` と `routes/` のどちらに置かれたかを知らない。リクエストを見て決めると、画面遷移がページのデータを裏で取りに行く仕組み（Void の中身）に頼ることになる
 - **アプリが作る門番（`requireAdmin` など）は `src/guards.ts` に置き、断るときも Failure を `throw toHttp(...)` で投げる**。`src/lib/` は domain を import できず、domain は `void/auth` を import できないので、その間の置き場所が要る（管理者の試験で、AI が置き場所に迷って自分で決めた）。呼んだ人だけで決まる権限（管理者だけ）は門番、行を見ないと決まらない権限（自分の貸出だけ）は usecase。門番にすると、入力の検証より先に断れて、`auth:` を grep すれば入口が全部出る
+- **全ページ共通のデータ（ヘッダー）は、各 loader が 1 つの関数から返し、`response` に書く**。Void の shared（middleware の `c.set("shared", ...)`）は `response` を通らずに全ページの HTML に入るので、行をそのまま置くと全部の列が出る。関数は guard が返したものを受け取るので、guard の隣（`src/guards.ts`）に置く（サークル収支の試験で、AI がこの形にしたが docs に置き場所が無かった）
+- **domain の前後は、id を持つ側ではなく、読む・呼ぶ向きで決める**。帳簿は口座にサークルの id を持つが、サークルを作るときに帳簿の usecase を呼び、帳簿はサークルを読まない。このときサークルが後（サークル収支の試験で、AI が外部キーの決まりとの食い違いに迷った）
+- **void-kit から写したファイルは、アプリの lint と fmt から外す**。Void 1.12 の雛形は `@cloudflare/oxlint-config` を最初から入れていて、写したファイルはそれに合っていない
 - **門番が 403 で断るアプリは `pages/_error.tsx` を持つ**。無いと、ページの 403 は素のテキストで返る。action の 403 も `_error.tsx` が受け止める（`throwOnError: false` は要らない）。dev では `_error.tsx` を初めて使うときに読み込みを待つので、一瞬画面が空になる（これを Void の不具合と取り違えた）
 - **handler の 2 つ目の引数に、入力・`member`・`now` を入れる**。Void は検証した入力を 2 つ目の引数で渡し、`c.req.valid(...)` には登録しない。Hono v5 も 2 つ目で渡す。`member` を `c.var` に置かないのは、Void の `c.var` の型がアプリ全体で 1 つ（`CloudContextVariables`）で、`auth` によって型を変えられないから。2 つ目の引数なら、`requireMember` で `AuthUser`、`allowAnonymous` で `null` と分けられる。`now` は型の問題は無いが、受け取るものを 1 か所に揃えた
 - **`response` は loader と route で必須、action では書かない**。loader の戻り値はそのままページの HTML に埋め込まれ、route の戻り値はそのまま送られる。行をそのまま返すと全部の列が出ていく（会員の行ならメールアドレス）。スキーマに通した値を返すので、宣言に無い項目は落ち、合わなければ 500（型が見逃したバグ）。action は何も返さない（ページを描き直す）かリダイレクトなので要らない。必須かどうかは型では分からない（関数は自分が loader か知らない）ので lint で見る
@@ -77,4 +80,5 @@ Void の上に載せるので、これを足す。
   - `guard` に印を付けて、手で書いた `{ check }` を `auth` に置けないようにする
   - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
+- **presets を `@cloudflare/oxlint-config` に合わせるか**。今はアプリの lint と fmt から外している
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら

@@ -12,6 +12,8 @@ cp -r presets/handlers/docs presets/handlers/lint <your-app>/
 
 `failure.ts` and `handler.ts` import `hono`: the app needs `hono` in its dependencies. The tests need `miniflare` as a dev dependency, at the version Void depends on (`"miniflare"` in `node_modules/void/package.json`): `pnpm add -D miniflare@<that version>`. Bump it when Void moves.
 
+Tests may live in `tests/`: add it to `include` in `tsconfig.json`, or the lint that reads types sees them as errors.
+
 `requireMember` sends a signed-out visitor to `/sign-in`. Change that path in `src/lib/void-kit/handler.ts` to the app's sign-in page.
 
 `vite.config.ts` (Vite+, `vp lint`):
@@ -35,6 +37,13 @@ export default defineConfig({
 ```
 
 With plain Vite, put the same `jsPlugins` and `rules` in `.oxlintrc.json`.
+
+The copied files are not written to the app's lint and format settings (a Void app starts with `@cloudflare/oxlint-config`). Leave them out of both, next to what Void generates:
+
+```ts
+lint: { ignorePatterns: [/* ... */ "lint/**", "src/lib/void-kit/**"] },
+fmt: { ignorePatterns: ["AGENTS.md", "docs/**", "lint/**", "src/lib/void-kit/**", "db/migrations/**"] },
+```
 
 `AGENTS.md`:
 

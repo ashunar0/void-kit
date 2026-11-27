@@ -25,7 +25,7 @@ It runs **auth → middleware → input validation → the handler**, then check
 | --- | --- |
 | `auth` | Required: who may call it. `requireMember` for a page (a signed-out visitor is sent to `/sign-in`), `requireMemberApi` for a route under `routes/` (a signed-out request gets 401: a redirect would hand `fetch` the sign-in page), `allowAnonymous` for anyone. A permission decided by who the caller is alone (only an admin) is a guard of its own, made with `guard((c) => ...)`; one that needs the row (the owner) is checked in the usecase |
 | `middleware` | Other middleware, run after `auth`. At most 4 |
-| `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page) |
+| `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page). A number from a form arrives as a string: `z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1))`, not `z.coerce.number()`, whose input type is `unknown` and leaves the form's field `unknown` |
 | `response` | What the handler returns. Required for a `loader` and for every method of a route; not written for an action, which returns nothing (the page is loaded again) or a redirect |
 | `handler` | Required, written last: what it does, `async (c, { ... }) => ...` (below) |
 
@@ -43,6 +43,8 @@ export const requireAdmin = guard((c) => {
 ```
 
 A 403 from a loader or an action is shown by `pages/_error.tsx` (Void's error page, given `error.status` and `error.message`). Without one, a page answers with plain text. The app has one as soon as any guard refuses.
+
+What every page of a section shows (the header of a circle's pages: its name, the caller's name and role) is returned by each loader, from one function, and declared in its `response`. Not by a middleware into Void's shared data (`c.set("shared", ...)`): that goes into every page's HTML without passing any `response`, so a whole row put there sends every column. The function takes what the guard returned and lives next to it, in `src/guards.ts`.
 
 ## What the handler receives
 
