@@ -14,17 +14,21 @@ AI にバックエンドを書かせると、細かいところが毎回揺れ�
 
 ```ts
 // pages/books/[id].server.ts
-export const loader = createHandler(
-  { auth: requireMember, response: propsSchema }, // 誰が呼べるか、ブラウザに何を送ってよいか
-  async (c, { member, now }) => {
+export const loader = createHandler({
+  auth: requireMember, // 誰が呼べるか、ブラウザに何を送ってよいか
+  response: propsSchema,
+  handler: async (c, { member, now }) => {
     // ...
   },
-);
+});
 
 export const actions = {
-  borrow: createHandler({ auth: requireMember }, async (c, { member, now }) => {
-    const result = await borrowBook(member.id, Number(c.req.param("id")), todayInJapan(now));
-    if (!result.ok) throw toHttp(result.error); // 文言は form.error に出る
+  borrow: createHandler({
+    auth: requireMember,
+    handler: async (c, { member, now }) => {
+      const result = await borrowBook(member.id, Number(c.req.param("id")), todayInJapan(now));
+      if (!result.ok) throw toHttp(result.error); // 文言は form.error に出る
+    },
   }),
 };
 ```

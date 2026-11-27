@@ -5,13 +5,17 @@
 Everything Void calls over HTTP — a page's `loader`, its `action` or each of its `actions`, and each method of a route under `routes/` (`GET`, `POST`, ...) — is built with `createHandler` from `src/lib/void-kit/handler.ts`, not with `defineHandler`. `lint/handlers.mjs` stops one that is not.
 
 ```ts
-export const loader = createHandler(
-  { auth: requireMember, query: loanFilterSchema, response: propsSchema },
-  async (c, { query, member, now }) => {
+export const loader = createHandler({
+  auth: requireMember,
+  query: loanFilterSchema,
+  response: propsSchema,
+  handler: async (c, { query, member, now }) => {
     // ...
   },
-);
+});
 ```
+
+The handler is the last key of the config, not a second argument: with a function inside, the formatter cannot put the config on one line, so every handler has the same shape.
 
 It runs **auth → middleware → input validation → the handler**, then checks what the handler returned against `response`.
 
@@ -23,8 +27,9 @@ It runs **auth → middleware → input validation → the handler**, then check
 | `middleware` | Other middleware, run after `auth`. At most 4 |
 | `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page) |
 | `response` | What the handler returns. Required for a `loader` and for every method of a route; not written for an action, which returns nothing (the page is loaded again) or a redirect |
+| `handler` | Required, written last: what it does, `async (c, { ... }) => ...` (below) |
 
-`response` is there because what a loader returns is put into the page's HTML as it is, and what a route returns is sent as it is: a row passed whole sends every column. The handler's return value is typed by the schema's input, so a value that drifted from it (a column whose type changed) is a type error. The error is reported at the top of the handler, not at the `return`: read its last lines, which name the property. The schema's output is what is sent, so a key it does not have is left out, and a value that still does not match while it runs is a 500 (a bug the types missed, such as a cast with `as`). Write it next to the loader, in the same file, and take `Props` from the loader as usual (`InferProps<typeof loader>`): it is the schema's output.
+`response` is there because what a loader returns is put into the page's HTML as it is, and what a route returns is sent as it is: a row passed whole sends every column. The handler's return value is typed by the schema's input, so a value that drifted from it (a column whose type changed) is a type error. The error is reported at the `handler:` key, not at the `return`: read its last lines, which name the property. The schema's output is what is sent, so a key it does not have is left out, and a value that still does not match while it runs is a 500 (a bug the types missed, such as a cast with `as`). Write it next to the loader, in the same file, and take `Props` from the loader as usual (`InferProps<typeof loader>`): it is the schema's output.
 
 A guard of the app's goes in `src/guards.ts`: `src/lib/` imports no domain, and a domain does not import `void/auth`. It reads the caller with `requireAuth`, decides with a function of the domain's `rules.ts`, and refuses with a failure from there, thrown as a usecase's is:
 

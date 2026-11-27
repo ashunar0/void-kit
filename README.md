@@ -14,17 +14,21 @@ It is the Void edition of [hono-kit](https://github.com/ashunar0/hono-kit), and 
 
 ```ts
 // pages/books/[id].server.ts
-export const loader = createHandler(
-  { auth: requireMember, response: propsSchema }, // who may call it, and what may reach the browser
-  async (c, { member, now }) => {
+export const loader = createHandler({
+  auth: requireMember, // who may call it, and what may reach the browser
+  response: propsSchema,
+  handler: async (c, { member, now }) => {
     // ...
   },
-);
+});
 
 export const actions = {
-  borrow: createHandler({ auth: requireMember }, async (c, { member, now }) => {
-    const result = await borrowBook(member.id, Number(c.req.param("id")), todayInJapan(now));
-    if (!result.ok) throw toHttp(result.error); // the message shows in form.error
+  borrow: createHandler({
+    auth: requireMember,
+    handler: async (c, { member, now }) => {
+      const result = await borrowBook(member.id, Number(c.req.param("id")), todayInJapan(now));
+      if (!result.ok) throw toHttp(result.error); // the message shows in form.error
+    },
   }),
 };
 ```

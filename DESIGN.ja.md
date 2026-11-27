@@ -33,7 +33,7 @@ Void の上に載せるので、これを足す。
 ### createHandler
 
 - **loader・action・route をすべて 1 つの関数で作る**。Void は全部に同じ `defineHandler` を使うので、こちらも置き場所で分けない
-- **形は hono-kit の `createEndpoint` と同じ「設定のオブジェクト＋ async の handler」**。Void の `withValidator` も Hono v5 の `defineHandler` も、設定と handler を別々に受け取る（2 回呼ぶ）形だが、それは handler の前に middleware をいくつでも並べるため。`createHandler` では門番は `auth` 欄に入るので、分ける理由が無い
+- **handler は設定のオブジェクトの最後の欄（`handler:`）に入れる**。前は hono-kit の `createEndpoint` と同じ「設定＋ handler」の 2 つの引数だったが、formatter（oxfmt、prettier と同じ決まり）は、書いた人が設定を 1 行で書くと 1 行のまま残し、改行して書くと広げる。同じ中身が 2 通りの形になり、欄が増えると 1 行に詰まった設定が読めない。カリー化（`createHandler({...})(async ...)`）も同じで、書き方しだいで 2 通りに分かれる。設定の中に複数行の関数があると formatter は設定を 1 行にできないので、誰が書いても 1 欄 1 行になり、lint で止めなくて済む（Fastify の `{ schema, handler }`、Nuxt の `defineEventHandler({ handler })` と同じ形）。型は、設定を 1 つの型引数で受けると、handler が隣にあるときに `body` などが推論されなくなったので、`body`・`query`・`params`・`response` に 1 つずつ型引数を持たせた。`response` で戻り値を縛る型も同じように効き、ずれは `handler:` の行に出る
 - **設定の欄は `auth`（必須）・`middleware`・`body` / `query` / `params`・`response`**。入力の欄は Void の名前に合わせた（Hono v5 は `param` / `json` など。Void が v5 に移ったら合わせる）。header・cookie は実例が無いので持たない。`middleware` は Void が handler の前に 5 個までしか並べられないので、`auth` を除いて 4 個まで（型で止める）
 - **走る順は auth → middleware → 検証 → handler**。Void の handler の中で `requireAuth` を呼ぶと検証より後になり、サインインしていない人の `?status=bogus` が 400 になった（サインインへ飛ぶべき所）。Void は `defineHandler(middleware, defineHandler.withValidator(...)(handler))` の形で、middleware を検証より先に走らせ、型（`useForm`・`InferProps`）も保つ。`createHandler` はこれを組み立てる。Void の内部ではなく、公開されている形の上に作っている
 - **auth を必須にする**。Void の `requireAuth` は呼び忘れても止まらない。必須の欄にして、書き忘れと「わざと公開」（`allowAnonymous`）を見分ける（hono-kit と同じ）。いったんは「global middleware で全部閉じる」にしたが、公開のページや役割（管理者だけ）がパスの一覧と handler に散らばるのでやめた

@@ -16,7 +16,9 @@ import type { MiddlewareHandler } from "hono";
 export type Guard<Member> = { readonly check: (c: CloudContext) => Member | Promise<Member> };
 
 /** Makes a guard: `export const requireRole = (role) => guard((c) => { ... })` */
-export const guard = <Member>(check: (c: CloudContext) => Member | Promise<Member>): Guard<Member> => ({
+export const guard = <Member>(
+  check: (c: CloudContext) => Member | Promise<Member>,
+): Guard<Member> => ({
   check,
 });
 
@@ -40,22 +42,22 @@ type SlotsOf<C> = { [K in keyof C & keyof Slots]: C[K] } & {};
 /** What the handler receives besides c: the validated input, who is calling, and the time of the request */
 type Input<C, Member> = HandlerInput<SlotsOf<C>> & { member: Member; now: Date };
 
-type Config<Member> = Slots & {
-  /** Required. requireMember, requireMemberApi, allowAnonymous, or a guard of the app's */
-  auth: Guard<Member>;
-  /** Other middleware, run after auth and before the input is validated. At most 4 (Void takes 5 in all) */
-  middleware?:
-    | []
-    | [MiddlewareHandler]
-    | [MiddlewareHandler, MiddlewareHandler]
-    | [MiddlewareHandler, MiddlewareHandler, MiddlewareHandler]
-    | [MiddlewareHandler, MiddlewareHandler, MiddlewareHandler, MiddlewareHandler];
-  /**
-   * What the handler returns, checked while it runs: a key the schema does not have is left out,
-   * and a value that does not match is a 500. Required for a loader and for routes (docs/handlers.md)
-   */
-  response?: Schema;
-};
+/** At most 4 (Void takes 5 in all, auth is one) */
+type Middleware =
+  | []
+  | [MiddlewareHandler]
+  | [MiddlewareHandler, MiddlewareHandler]
+  | [MiddlewareHandler, MiddlewareHandler, MiddlewareHandler]
+  | [MiddlewareHandler, MiddlewareHandler, MiddlewareHandler, MiddlewareHandler];
+
+/**
+ * The schemas a config declares, put back together from their own type parameters.
+ * Each one has its own so that TypeScript reads them before it types the handler beside them
+ */
+type Declared<B, Q, P, S> = (B extends Schema ? { body: B } : {}) &
+  (Q extends Schema ? { query: Q } : {}) &
+  (P extends Schema ? { params: P } : {}) &
+  (S extends Schema ? { response: S } : {});
 
 /** What reaches the page or the client: the response schema's output when there is one */
 type Returned<C, R> = C extends { response: infer S extends Schema }
@@ -66,19 +68,49 @@ type Returned<C, R> = C extends { response: infer S extends Schema }
  * What the handler may return. With a response schema, its input (or a Response, for a redirect or a 404),
  * so a value that drifted from the schema is underlined where it is returned, not found at run time
  */
-type MayReturn<C, R> = C extends { response: infer S extends Schema } ? In<S> | Response | Promise<In<S> | Response> : R;
+type MayReturn<C, R> = C extends { response: infer S extends Schema }
+  ? In<S> | Response | Promise<In<S> | Response>
+  : R;
 
 const MEMBER = "voidKit.member";
 
 /**
  * A loader, an action, an entry of actions, or a method of a route:
- * `export const loader = createHandler({ auth: requireMember, response: propsSchema }, async (c, { member, now }) => ...)`.
- * Runs auth → middleware → input validation → handler, then checks what it returns against `response`
+ * `export const loader = createHandler({ auth: requireMember, response: propsSchema, handler: async (c, { member, now }) => ... })`.
+ * Runs auth → middleware → input validation → handler, then checks what it returns against `response`.
+ * The handler is the config's last key: with it inside, the config is always one key per line once formatted
  */
-export const createHandler = <const C extends Config<Member>, Member, R>(
-  config: C & { auth: Guard<Member> },
-  handler: (c: CloudContext, input: Input<C, Member>) => MayReturn<C, R>,
-): TypedHandler<SlotsOf<C>, Exclude<Awaited<Returned<C, R>>, Response>> => {
+export const createHandler = <
+  Member,
+  R,
+  B extends Schema | undefined = undefined,
+  Q extends Schema | undefined = undefined,
+  P extends Schema | undefined = undefined,
+  S extends Schema | undefined = undefined,
+>(config: {
+  /** Required. requireMember, requireMemberApi, allowAnonymous, or a guard of the app's */
+  auth: Guard<Member>;
+  /** Other middleware, run after auth and before the input is validated */
+  middleware?: Middleware;
+  /** The input, validated as Void does */
+  body?: B;
+  query?: Q;
+  params?: P;
+  /**
+   * What the handler returns, checked while it runs: a key the schema does not have is left out,
+   * and a value that does not match is a 500. Required for a loader and for routes (docs/handlers.md)
+   */
+  response?: S;
+  /** What it does: `(c, { body, query, params, member, now }) => ...`. Written last */
+  handler: (
+    c: CloudContext,
+    input: Input<Declared<B, Q, P, S>, Member>,
+  ) => MayReturn<Declared<B, Q, P, S>, R>;
+}): TypedHandler<
+  SlotsOf<Declared<B, Q, P, S>>,
+  Exclude<Awaited<Returned<Declared<B, Q, P, S>, R>>, Response>
+> => {
+  const { handler } = config;
   const auth: MiddlewareHandler = async (c, next) => {
     c.set(MEMBER, await config.auth.check(c as unknown as CloudContext));
     await next();
@@ -90,7 +122,10 @@ export const createHandler = <const C extends Config<Member>, Member, R>(
 
   const run = defineHandler.withValidator(slots)(async (c, input) => {
     const now = new Date();
-    const result = await handler(c, { ...(input as object), member: c.get(MEMBER), now } as Input<C, Member>);
+    const result = await handler(c, { ...(input as object), member: c.get(MEMBER), now } as Input<
+      Declared<B, Q, P, S>,
+      Member
+    >);
     if (config.response === undefined || result instanceof Response) return result;
     const checked = await config.response["~standard"].validate(result);
     if (checked.issues) {
