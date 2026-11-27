@@ -11,7 +11,7 @@ pages/                          binds URLs to screens
     index.server.ts             the loader and actions (docs/handlers.md)
 src/components/
   screens/                      one directory per screen
-    circleMembers/
+    members/
       index.tsx                 the screen
       memberRow.tsx             used by this screen only
   widgets/                      parts used by two or more screens, one directory each
@@ -28,15 +28,17 @@ src/components/
 
 ```tsx
 // pages/circles/[circleId]/members/index.tsx
-import { CircleMembers } from "../../../../src/components/screens/circleMembers";
+import { Members } from "../../../../src/components/screens/members";
 import type { Props } from "./index.server";
 
 export default function Page(props: Props) {
-  return <CircleMembers {...props} />;
+  return <Members {...props} />;
 }
 ```
 
-The screen takes the same `Props` (`import type { Props } from ".../pages/.../index.server"`): the loader's `response` decides it, so it is written once. `layout.tsx`, `_error.tsx` and `_not-found.tsx` bind too: each renders a screen.
+The screen takes the same `Props` (`import type { Props } from ".../pages/.../index.server"`): the loader's `response` decides it, so it is written once. A page with no loader renders its screen with no props. `_error.tsx` and `_not-found.tsx` bind too: each renders a screen with Void's `ErrorPageProps`. A `layout.tsx` that only wraps `children` (and imports the CSS) stays as it is; once it shows something (a menu), that goes in a screen.
+
+**A screen is named after its page**, the last segment of its URL that is not a parameter: `members`, `transactions`, and `transaction` for `transactions/[transactionId]`; `errorPage` and `notFound` for `_error` and `_not-found`. Import a screen or a part by its directory (`.../screens/members`), not its `index` file.
 
 ## src/components/
 
@@ -49,7 +51,7 @@ The screen takes the same `Props` (`import type { Props } from ".../pages/.../in
 - **A screen never imports another screen.** When a second screen wants a piece of one, move the piece to `widgets/`
 - **A piece starts in the screen that needs it** and moves only when a second screen wants it. Nothing goes in `widgets/` or `shared/` in advance
 - **Generic first:** a piece that names no domain's type, rule or word goes in `shared/`, however many screens use it. Before moving a piece to `widgets/` for one domain import (a page size), try passing it as a prop
-- **A screen or a part is a directory** with `index.tsx`, even with nothing else in it yet
+- **A screen or a part is a directory** with `index.tsx` (`index.ts` for a hook), even with nothing else in it yet
 - Everything here runs in the browser: it imports a domain's `rules.ts` and types only (docs/domains.md), and talks to the server only through the page's loader props and Void's `useForm` / `action` / `Link`
 
 The loader gives each screen everything it shows, so there is no client-side data layer (DAA's `features/`): the domain axis is `src/domains/` on the server.
