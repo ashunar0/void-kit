@@ -26,6 +26,17 @@ It runs **auth → middleware → input validation → the handler**, then check
 
 `response` is there because what a loader returns is put into the page's HTML as it is, and what a route returns is sent as it is: a row passed whole sends every column. The handler's return value is typed by the schema's input, so a value that drifted from it (a column whose type changed) is a type error. The error is reported at the top of the handler, not at the `return`: read its last lines, which name the property. The schema's output is what is sent, so a key it does not have is left out, and a value that still does not match while it runs is a 500 (a bug the types missed, such as a cast with `as`). Write it next to the loader, in the same file, and take `Props` from the loader as usual (`InferProps<typeof loader>`): it is the schema's output.
 
+A guard of the app's goes in `src/guards.ts`: `src/lib/` imports no domain, and a domain does not import `void/auth`. It reads the caller with `requireAuth`, decides with a function of the domain's `rules.ts`, and refuses with a failure from there, thrown as a usecase's is:
+
+```ts
+// src/guards.ts
+export const requireAdmin = guard((c) => {
+  const member = requireAuth(c, { throwRedirect: "/sign-in" });
+  if (!isAdmin(member)) throw toHttp(AdminOnly); // AdminOnly: kind "forbidden", in member/rules.ts
+  return member;
+});
+```
+
 ## What the handler receives
 
 `(c, { body, query, params, member, now })`:
