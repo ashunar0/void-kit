@@ -80,5 +80,6 @@ Void の上に載せるので、これを足す。
   - `guard` に印を付けて、手で書いた `{ check }` を `auth` に置けないようにする
   - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
+- **route がファイル（CSV・画像）を返す形**。`createHandler` は route に `response` を求めるが、ファイルは JSON のスキーマで書けない。サークル収支の 2 回目で、AI は CSV をブラウザで作って避けた。領収書の写真を返す回で決める
 - **presets を `@cloudflare/oxlint-config` に合わせるか**。今はアプリの lint と fmt から外している
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら

@@ -25,7 +25,7 @@ It runs **auth → middleware → input validation → the handler**, then check
 | --- | --- |
 | `auth` | Required: who may call it. `requireMember` for a page (a signed-out visitor is sent to `/sign-in`), `requireMemberApi` for a route under `routes/` (a signed-out request gets 401: a redirect would hand `fetch` the sign-in page), `allowAnonymous` for anyone. A permission decided by who the caller is alone (only an admin) is a guard of its own, made with `guard((c) => ...)`; one that needs the row (the owner) is checked in the usecase |
 | `middleware` | Other middleware, run after `auth`. At most 4 |
-| `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page). A number from a form arrives as a string: `z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1))`, not `z.coerce.number()`, whose input type is `unknown` and leaves the form's field `unknown` |
+| `body`, `query`, `params` | The input, validated as Void does (`form.errors` on a page). A number from a form arrives as a string: `z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1))`, not `z.coerce.number()`, whose input type is `unknown` and leaves the form's field `unknown`. A loader's `params` and `query` come from a URL anyone can type, and one that does not fit answers with Void's bare 400: give a `query` key a fallback (`.catch(...)`), and take a `params` value as a string and answer `c.notFound()` when it does not parse |
 | `response` | What the handler returns. Required for a `loader` and for every method of a route; not written for an action, which returns nothing (the page is loaded again) or a redirect |
 | `handler` | Required, written last: what it does, `async (c, { ... }) => ...` (below) |
 
