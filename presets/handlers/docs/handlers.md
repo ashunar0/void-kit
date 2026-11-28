@@ -46,7 +46,12 @@ A 403 from a loader or an action is shown by `pages/_error.tsx` (Void's error pa
 
 What every page of a section shows (the header of a circle's pages: its name, the caller's name and role) is Void's shared data: the guard of those pages puts it with `setShared(c, schema, value)`, and the widget that shows it reads it with `useShared()` from `@void/react`. A loader does not return it. Declare its type on Void's `CloudContextVariables` next to the schema, in `src/guards.ts` (`declare module "void" { interface CloudContextVariables { shared: { header?: Header } } }`). `setShared` checks the value against the schema first, as a loader's `response` is: shared data goes into every page's HTML and is carried on navigation, so a whole row put there would send every column. `c.set("shared", ...)` itself is stopped by the lint (`handlers/through-set-shared`).
 
-## What the handler receives
+## Cron jobs
+
+A cron job is Void's: a file in `crons/` that exports `cron` and a `defineScheduled(...)` handler (`node_modules/void/docs/guide/jobs.md`). It has no caller to check, no input and nothing it sends, so it is not built with `createHandler`. It is an entry point like a loader: it calls a domain's queries and usecases, and does not touch `void/db` or `void/storage` itself (docs/domains.md).
+
+- **Now** is the run's scheduled time, `new Date(controller.scheduledTime)`, not the clock: it is passed down as an argument, as a handler's `now` is. `vp dev` runs a job with any `scheduledTime` (`POST /__void/scheduled`), so "ten minutes ago" can be tried without waiting
+- **A job that works through many things** (picking up writes that stopped halfway) does it with `sweep(name, pick, run)` from `src/lib/void-kit/sweep`: `run` is called on each thing `pick` returns, one at a time, and a throw does not stop the rest, since stopping would stop on the same thing every run. Pick at most a page (100) per kind; the rest waits for the next run. End the job with `finishSweeps(name, results)`: it logs what was done and throws when anything failed, so Void reports the run as failed
 
 `(c, { body, query, params, member, now })`:
 

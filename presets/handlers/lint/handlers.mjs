@@ -134,7 +134,9 @@ const noClock = {
     const report = (node) =>
       context.report({
         node,
-        message: `Do not read the clock here: take now from the handler's input ({ now }) and pass it (or today) down as an argument. ${MORE}`,
+        message: rel.startsWith("crons/")
+          ? `Do not read the clock in a cron: take now from the run's scheduled time (new Date(controller.scheduledTime)) and pass it (or today) down as an argument. ${MORE}`
+          : `Do not read the clock here: take now from the handler's input ({ now }) and pass it (or today) down as an argument. ${MORE}`,
       });
     return {
       NewExpression(node) {

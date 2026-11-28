@@ -1,6 +1,6 @@
 # handlers preset
 
-`createHandler`: how every loader, action and route of a Void app is written. It runs who may call it (`auth`, required) before the input is validated, hands the handler who is calling (`member`) and the time of the request (`now`), and checks what a loader or a route returns against its `response` schema, so a column it should not send is left out. With it come `Result` / `Failure` / `toHttp` (an expected failure is a value, and its HTTP status comes from its kind), `setShared` (Void's shared data, checked by a schema) and an oxlint plugin that stops a handler built any other way. Not published to npm: a project copies these files and owns them.
+`createHandler`: how every loader, action and route of a Void app is written. It runs who may call it (`auth`, required) before the input is validated, hands the handler who is calling (`member`) and the time of the request (`now`), and checks what a loader or a route returns against its `response` schema, so a column it should not send is left out. With it come `Result` / `Failure` / `toHttp` (an expected failure is a value, and its HTTP status comes from its kind), `setShared` (Void's shared data, checked by a schema), `sweep` / `finishSweeps` (a cron job that works through many things) and an oxlint plugin that stops a handler built any other way. Not published to npm: a project copies these files and owns them.
 
 ## Copy
 
