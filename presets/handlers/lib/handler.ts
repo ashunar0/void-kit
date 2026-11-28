@@ -61,18 +61,20 @@ type Declared<B, Q, P, S> = (B extends Schema ? { body: B } : unknown) &
   (P extends Schema ? { params: P } : unknown) &
   (S extends Schema ? { response: S } : unknown);
 
-/** What reaches the page or the client: the response schema's output when there is one */
+/** What reaches the page or the client: the response schema's output. Without one, nothing (a Response is sent as it is) */
 type Returned<C, R> = C extends { response: infer S extends Schema }
   ? Out<S> | Extract<Awaited<R>, Response>
-  : R;
+  : undefined;
 
 /**
  * What the handler may return. With a response schema, its input (or a Response, for a redirect or a 404),
- * so a value that drifted from the schema is underlined where it is returned, not found at run time
+ * so a value that drifted from the schema is underlined where it is returned, not found at run time.
+ * Without one, nothing (an action) or a Response it builds itself (a redirect, a file, a stream):
+ * a value would be sent as it is, every column of a row with it
  */
 type MayReturn<C, R> = C extends { response: infer S extends Schema }
   ? In<S> | Response | Promise<In<S> | Response>
-  : R;
+  : R & (void | Response | Promise<void | Response>);
 
 const MEMBER = "voidKit.member";
 
@@ -100,7 +102,8 @@ export const createHandler = <
   params?: P;
   /**
    * What the handler returns, checked while it runs: a key the schema does not have is left out,
-   * and a value that does not match is a 500. Required for a loader and for routes (docs/handlers.md)
+   * and a value that does not match is a 500. Required to return a value; without it, the handler returns
+   * nothing or a Response it builds (a file). Required for a loader (docs/handlers.md)
    */
   response?: S;
   /** What it does: `(c, { body, query, params, member, now }) => ...`. Written last */
@@ -138,8 +141,15 @@ export const createHandler = <
     >;
     const result = await Promise.resolve(handler(c, passed));
     // oxlint-disable-next-line @nkzw/no-instanceof -- a redirect or a 404 is a Response, passed on as it is
-    if (config.response === undefined || result instanceof Response) {
+    if (result instanceof Response) {
       return result;
+    }
+    if (config.response === undefined) {
+      if (result === undefined) {
+        return result;
+      }
+      logger.error("The handler returned a value without a response schema");
+      throw new HTTPException(500, { message: "Internal Server Error" });
     }
     const checked = await config.response["~standard"].validate(result);
     if (checked.issues) {

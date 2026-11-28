@@ -30,7 +30,7 @@ const hasKey = (object, key) =>
 
 const MORE = "More: docs/handlers.md";
 
-/** export された handler が createHandler で作られているか。loader と routes は response も要る */
+/** export された handler が createHandler で作られているか。loader は response も要る（route は値を返すなら型が求める） */
 const throughCreateHandler = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
@@ -50,7 +50,7 @@ const throughCreateHandler = {
       if (needsResponse && config && !hasKey(config, "response")) {
         context.report({
           node: config,
-          message: `${name} returns what reaches the ${isRoute(rel) ? "client" : "browser (it is put in the page's HTML)"}: declare it as response, so a column it should not send is left out. ${MORE}`,
+          message: `${name} returns what reaches the browser (it is put in the page's HTML): declare it as response, so a column it should not send is left out. ${MORE}`,
         });
       }
     };
@@ -64,7 +64,8 @@ const throughCreateHandler = {
         for (const d of declaration.declarations) {
           const name = d.id.name;
           if (isRoute(rel) && routeMethods.has(name)) {
-            requireCreated(d.init, name, true);
+            // A route returning a value without response is a type error (docs/handlers.md)
+            requireCreated(d.init, name, false);
           }
           if (!isPageServer(rel)) {
             continue;
