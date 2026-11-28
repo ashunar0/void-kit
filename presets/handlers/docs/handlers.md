@@ -44,7 +44,7 @@ export const requireAdmin = guard((c) => {
 
 A 403 from a loader or an action is shown by `pages/_error.tsx` (Void's error page, given `error.status` and `error.message`). Without one, a page answers with plain text. The app has one as soon as any guard refuses.
 
-What every page of a section shows (the header of a circle's pages: its name, the caller's name and role) is returned by each loader, from one function, and declared in its `response`. Not by a middleware into Void's shared data (`c.set("shared", ...)`): that goes into every page's HTML without passing any `response`, so a whole row put there sends every column. The function takes what the guard returned and lives next to it, in `src/guards.ts`.
+What every page of a section shows (the header of a circle's pages: its name, the caller's name and role) is Void's shared data: the guard of those pages puts it with `setShared(c, schema, value)`, and the widget that shows it reads it with `useShared()` from `@void/react`. A loader does not return it. Declare its type on Void's `CloudContextVariables` next to the schema, in `src/guards.ts` (`declare module "void" { interface CloudContextVariables { shared: { header?: Header } } }`). `setShared` checks the value against the schema first, as a loader's `response` is: shared data goes into every page's HTML and is carried on navigation, so a whole row put there would send every column. `c.set("shared", ...)` itself is stopped by the lint (`handlers/through-set-shared`).
 
 ## What the handler receives
 

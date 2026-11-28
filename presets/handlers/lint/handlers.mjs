@@ -160,6 +160,38 @@ const noClock = {
   },
 };
 
+/** Void の shared は response を通らずに全ページの HTML に入る。入れるのは setShared だけ */
+const throughSetShared = {
+  create(context) {
+    const rel = relativeOf(context.filename, context.cwd);
+    if (
+      isTest(rel) ||
+      rel === "src/lib/void-kit/handler.ts" ||
+      rel.startsWith("..") ||
+      rel.startsWith("node_modules/")
+    ) {
+      return {};
+    }
+    return {
+      CallExpression(node) {
+        const callee = node.callee;
+        const key = node.arguments[0];
+        if (
+          callee.type === "MemberExpression" &&
+          callee.property.name === "set" &&
+          key?.type === "Literal" &&
+          key.value === "shared"
+        ) {
+          context.report({
+            node,
+            message: `Put shared data with setShared(c, schema, value) from src/lib/void-kit/handler: it goes into every page's HTML, so it passes a schema first, as a loader's response does. ${MORE}`,
+          });
+        }
+      },
+    };
+  },
+};
+
 /** routes/ と pages/ に置いたファイルは、Void が route やページにする。テストもそうなる */
 const noTestsInRoutes = {
   create(context) {
@@ -185,5 +217,6 @@ export default {
     "no-json-response": noJsonResponse,
     "no-clock": noClock,
     "no-tests-in-routes": noTestsInRoutes,
+    "through-set-shared": throughSetShared,
   },
 };

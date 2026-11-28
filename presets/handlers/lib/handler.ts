@@ -1,5 +1,11 @@
 import { defineHandler } from "void";
-import type { CloudContext, HandlerInput, TypedHandler, ValidatorSlots } from "void";
+import type {
+  CloudContext,
+  CloudContextVariables,
+  HandlerInput,
+  TypedHandler,
+  ValidatorSlots,
+} from "void";
 import { requireAuth } from "void/auth";
 import { logger } from "void/log";
 import { HTTPException } from "hono/http-exception";
@@ -148,4 +154,27 @@ export const createHandler = <
   const middleware = config.middleware ?? [];
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion, quality/no-unknown-returns -- Void types defineHandler(...middleware, handler) for a fixed count; the return type is declared above
   return (defineHandler as (...args: Array<unknown>) => unknown)(auth, ...middleware, run) as never;
+};
+
+/** What the app declares as Void's shared data (`declare module "void" { interface CloudContextVariables { shared: ... } }`) */
+type Shared = CloudContextVariables["shared"];
+
+/**
+ * Puts data every page of a section shows (a header) into Void's shared data, checked by a schema first,
+ * as a loader's `response` is: a key the schema does not have is left out. Shared data goes into every
+ * page's HTML, so a whole row put there would send every column. Merges with what is there already.
+ * `await setShared(c, headerSchema, { header: ... })`, from a guard or a middleware
+ */
+export const setShared = async <S extends Schema>(
+  c: CloudContext,
+  schema: Out<S> extends Partial<Shared> ? S : never,
+  value: In<S>,
+): Promise<void> => {
+  const checked = await schema["~standard"].validate(value);
+  if (checked.issues) {
+    logger.error("The shared data does not match its schema", { issues: checked.issues });
+    throw new HTTPException(500, { message: "Internal Server Error" });
+  }
+  const current = c.get("shared");
+  c.set("shared", Object.assign({}, typeof current === "object" ? current : null, checked.value));
 };
