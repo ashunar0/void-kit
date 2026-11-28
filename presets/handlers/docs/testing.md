@@ -53,6 +53,8 @@ curl -s -c jar -X POST localhost:5173/api/auth/sign-in/email \
 
 Make the rows through the app (its pages and actions, or curl to them), not by writing into the tables. Write down what was sent and what came back in the report of the work.
 
+The one exception is a state the app never leaves a row in on purpose: a write that stopped halfway (a payment still being recorded, a year still closing), which a cron picks up. Make the row through the app first, then change only its state and its time in `vp dev`'s D1 (the Local Explorer that `vp dev` prints, `/cdn-cgi/local/explorer/api/d1/database`), and run the cron with `POST /__void/scheduled` and a `scheduledTime` past the wait. Say in the report which columns were changed.
+
 ## Data
 
 - **The date is an argument.** A usecase takes `today` (or `now`) from its caller, so a test passes a fixed one (`"2026-11-24"`) and the result does not change with the day it runs. When code reads `now` that a test cannot pass, fix the clock with `vi.setSystemTime(new Date("2026-11-24T00:00:00+09:00"))`
