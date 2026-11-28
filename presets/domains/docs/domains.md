@@ -8,8 +8,8 @@ Void decides where pages, routes and tables go, not where the business rules go.
 src/domains/<noun>/
   index.ts            # what other domains and the entry points may call: queries, usecases
   rules.ts            # no I/O: values, plain functions, failures, the shapes of values (monthSchema). Read directly, by anyone
-  queries.ts          # reads (SELECT) of this domain's tables
-  mutations.ts        # writes (INSERT / UPDATE / DELETE) of this domain's tables
+  queries.ts          # reads (SELECT) of this domain's tables, and of its files in storage
+  mutations.ts        # writes (INSERT / UPDATE / DELETE) of this domain's tables, and of its files in storage
   usecases/<verb>.ts  # one operation: read, check, write. Named by a verb (sendInvoice)
   usecases/_<name>.ts # a part two usecases of this domain share (usecases/_withinBudget.ts)
 db/schema/<noun>.ts   # this domain's tables
@@ -82,17 +82,17 @@ A failure the rules expect (not found, already sent, on loan) is a value, return
 
 ## What each file may import
 
-| File                                 | May import                                                                                                                                    | May not                                                                                           |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `index.ts`                           | its own domain's queries, usecases                                                                                                            | rules, mutations, `usecases/_*`, anything outside its domain                                      |
-| `rules.ts`                           | another domain's `rules.ts`, `src/lib`, a schema library (zod), types                                                                         | `void`, `void/*`, `@schema`, drizzle, hono, any `index.ts`, queries / mutations / usecases        |
-| `queries.ts`, `mutations.ts`         | `void/db`, `@schema/<its own domain>`, `@auth-schema`, its own domain's files, another domain's `rules.ts`, `src/lib`                         | `@schema`, another domain's tables, another domain's `index.ts` and other files, its own usecases |
-| `usecases/*`                         | its own domain's queries / mutations / rules / `usecases/_*`, another domain's `index.ts` and `rules.ts`, `src/lib`, `void/db` for `db.batch` | drizzle, `@schema` values, another usecase of its own domain (share through `usecases/_*`)        |
-| entry points                         | a domain's `index.ts` and `rules.ts`, `src/lib`, types from `@schema`                                                                         | a domain's other files, `db` from `void/db`, `@schema` values, drizzle                            |
-| page components, `src/components/**` | a domain's `rules.ts`, `src/lib`, types                                                                                                       | any `index.ts`, a domain's other files, `void/db`, `@schema` values                               |
-| `db/**`                              | a domain's `rules.ts`, so a table can use a list of values (`taxRates`), `src/lib`                                                            | any `index.ts`, a domain's other files                                                            |
-| `src/lib/**`                         | other files in `src/lib`, packages                                                                                                            | any domain, `db/**`                                                                               |
-| anything else                        | a domain's `index.ts` and `rules.ts`, `src/lib`                                                                                               | a domain's other files                                                                            |
+| File                                 | May import                                                                                                                                    | May not                                                                                                    |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `index.ts`                           | its own domain's queries, usecases                                                                                                            | rules, mutations, `usecases/_*`, anything outside its domain                                               |
+| `rules.ts`                           | another domain's `rules.ts`, `src/lib`, a schema library (zod), types                                                                         | `void`, `void/*`, `@schema`, drizzle, hono, any `index.ts`, queries / mutations / usecases                 |
+| `queries.ts`, `mutations.ts`         | `void/db`, `void/storage`, `@schema/<its own domain>`, `@auth-schema`, its own domain's files, another domain's `rules.ts`, `src/lib`         | `@schema`, another domain's tables, another domain's `index.ts` and other files, its own usecases          |
+| `usecases/*`                         | its own domain's queries / mutations / rules / `usecases/_*`, another domain's `index.ts` and `rules.ts`, `src/lib`, `void/db` for `db.batch` | drizzle, `void/storage`, `@schema` values, another usecase of its own domain (share through `usecases/_*`) |
+| entry points                         | a domain's `index.ts` and `rules.ts`, `src/lib`, types from `@schema`                                                                         | a domain's other files, `db` from `void/db`, `void/storage`, `@schema` values, drizzle                     |
+| page components, `src/components/**` | a domain's `rules.ts`, `src/lib`, types                                                                                                       | any `index.ts`, a domain's other files, `void/db`, `@schema` values                                        |
+| `db/**`                              | a domain's `rules.ts`, so a table can use a list of values (`taxRates`), `src/lib`                                                            | any `index.ts`, a domain's other files                                                                     |
+| `src/lib/**`                         | other files in `src/lib`, packages                                                                                                            | any domain, `db/**`                                                                                        |
+| anything else                        | a domain's `index.ts` and `rules.ts`, `src/lib`                                                                                               | a domain's other files                                                                                     |
 
 ## Writing
 
@@ -103,6 +103,7 @@ A failure the rules expect (not found, already sent, on loan) is a value, return
 - **A change made from what someone was looking at carries the version they saw.** Two treasurers edit the same row: the row has a `version`, the form sends it back, and the update is `WHERE id = ? AND version = ?` setting `version + 1`. No row back means someone else changed it first: a failure of its own ("someone changed it first"), not a not-found
 - Every write goes through a usecase, even one with nothing to check: otherwise "is there a check?" is a choice made each time, and adding one later moves the code
 - `mutations.ts` returns the query, not yet run. The usecase awaits it and reads the result: no row back from an update means it found nothing or lost to another edit
+- **A file in storage** (`storage` from `void/storage`, R2) is read in `queries.ts` and written in `mutations.ts`, as a table is. A storage call runs when it is called and cannot go in `db.batch`, so a usecase that writes a file and its row writes them in steps, in the order that leaves only a file no row points at when it stops halfway: adding, the file first and then the row; removing, the row first and then the file. The key is chosen by the server, never from the file's name
 
 ## Writing across domains
 

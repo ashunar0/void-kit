@@ -232,12 +232,21 @@ const violationOf = (from, fromRel, target, typeOnly, names, root) => {
   ) {
     return "usecases do not write SQL: put the read in queries.ts and the write in mutations.ts, and call them";
   }
+  if (
+    (from.kind === "usecases" || from.kind === "usecases-shared") &&
+    target.pkg === "void/storage"
+  ) {
+    return "usecases do not touch storage: put the read in queries.ts and the write in mutations.ts, and call them";
+  }
   if ((from.kind === "entry" || from.kind === "component") && !typeOnly) {
     if (isPkg(target, "drizzle-orm")) {
       return "An entry point does not touch the database: read through a domain's queries, write through its usecases";
     }
     if (target.pkg === "void/db" && names.includes("db")) {
       return "An entry point does not touch the database: read through a domain's queries, write through its usecases";
+    }
+    if (target.pkg === "void/storage") {
+      return "An entry point does not touch storage: read through a domain's queries, write through its usecases";
     }
   }
 
