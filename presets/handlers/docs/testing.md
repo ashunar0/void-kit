@@ -2,29 +2,57 @@
 
 <!-- Copied from void-kit's presets/handlers (https://github.com/ashunar0/void-kit/tree/main/presets/handlers). Change it there first, then copy again. -->
 
-Tests run with `vp test` (Vitest). Import `it`, `expect`, `describe`, `vi` from `vite-plus/test`.
+Tests run with `vp test` (Vitest), as Void's testing guide says (`node_modules/void/docs/guide/testing.md`): in Node.js, without a Worker and without a database. Import `it`, `expect`, `describe`, `vi` from `vite-plus/test`.
 
-**Every test file gets its own fresh local D1** — the same Miniflare D1 as `vp dev` — with every migration in `db/migrations` applied, as the `db` of `void/db`. `src/lib/void-kit/test-setup.ts` does it for every file (`test.setupFiles` in `vite.config.ts`); a test does not mock `void/db` itself. So queries, mutations and usecases run their real SQL: a condition in a `WHERE`, a unique index, an `INSERT ... SELECT ... WHERE NOT EXISTS` are tested as they are.
+Two ways of checking, each for what it can show:
+
+- **`vp test`**: the rules and the branches of a usecase. What touches D1, R2 or KV is replaced with `vi.mock()`, as Void's guide does
+- **`vp dev` and curl**: what the SQL keeps (a condition in a `WHERE`, a unique index, a foreign key, two requests at once). Only the real D1 can show it
 
 ## Where
 
 Next to the code it tests, in `src/` (`src/domains/loan/usecases/borrowBook.test.ts`), or in `tests/`. Never under `routes/` or `pages/`: Void makes every file there a route or a page, a test too (`handlers/no-tests-in-routes` stops it).
 
-A test imports the file it tests directly (`./borrowBook`, `./queries`, `../rules`), and anything else as the code does: another domain through its `index.ts` and `rules.ts`. The import rules of docs/domains.md do not apply to test files otherwise.
+A test imports the file it tests directly (`./borrowBook`, `../rules`), and anything else as the code does: another domain through its `index.ts` and `rules.ts`. The import rules of docs/domains.md do not apply to test files otherwise.
 
-## What
+## What `vp test` checks
 
-- **A usecase**: what it returns when it succeeds, and each failure it can return (`expect(result).toEqual({ ok: false, error: BookOnLoan })`), with the rows that lead to it made by the test
-- **A query with a condition** (a status filter, an order): rows on both sides of the condition
-- **A rule** in `rules.ts`: a plain function, called as it is
-- **Two writes that must not both win** (lending and retiring the same book, a member borrowing a fourth book in two tabs): run them together with `Promise.all` and check that not both succeeded. JavaScript switches between them at every `await`, so the gap between a read and a write is hit, as it would be by two requests. Repeat it a few times in a loop (20) on fresh rows, and give that test a longer timeout (`30_000`): run with the others it passes vitest's 5 seconds. Every rule of the spec that a write must keep ("at most 3", "one member at a time") deserves one: a check read before the write passes this test only when the write checks it again (docs/domains.md, Writing)
-- **A gap `Promise.all` will not hit** (a usecase that marks a year as closing, then counts the balances: a transaction must not slip in between): make it happen. Replace the read in the middle with one that first runs the other write, and keep the rest of the module: `vi.mock(import("../queries"), async (original) => { const actual = await original(); return { ...actual, sumTransactions: async (...args) => { await recordTransaction(...); return actual.sumTransactions(...args); } }; })`. Then check the test fails with the write's condition taken out
+- **A rule** in `rules.ts`: a plain function, called as it is. Most of the spec lives here, so most tests do too
+- **A usecase**: what it returns when it succeeds, and each failure it can return (`expect(result).toEqual({ ok: false, error: BookOnLoan })`). Replace its domain's `queries` and `mutations` (and any other domain's `index.ts` it calls) with `vi.mock()`, so each test says what the reads return and what the write reports:
+
+  ```ts
+  vi.mock(import("../queries"), () => ({ findBook: vi.fn(), countLoans: vi.fn() }));
+  vi.mock(import("../mutations"), () => ({ insertLoanIfAvailable: vi.fn() }));
+
+  it("refuses a fourth book", async () => {
+    vi.mocked(findBook).mockResolvedValue(book);
+    vi.mocked(countLoans).mockResolvedValue(3);
+    expect(await borrowBook({ ... })).toEqual({ ok: false, error: LoanLimitReached });
+    expect(insertLoanIfAvailable).not.toHaveBeenCalled();
+  });
+  ```
+
+  A write that comes back with no row (its condition did not hold) is a case too: say so with the mock (`mockResolvedValue([])`) and check the usecase reads again and returns the failure the spec names (docs/domains.md, Writing)
+- **A usecase in steps** (write here, then call another domain, then confirm): make each step fail in turn with the mock, and check what is left and that running it again finishes it
+- A query or a mutation is not tested with `vp test`: it is SQL, and a mock would only repeat it. It is checked in `vp dev` (below)
 - A loader, an action or a route is not tested: who may call it, its input and what it sends are held by `createHandler`, its types and the lint (docs/handlers.md). Keep what it does to a call of a usecase or of queries, and test those. **When a loader combines results by a rule of the spec** (a book is available when neither retired nor on loan, a member's count of books and overdue flag), that rule is a function of a `rules.ts` (`isAvailable`, `loanSummaryOf`), tested there; what stays in the loader is reading and looking up (a title by id)
+
+## What `vp dev` checks
+
+Every rule of the spec that a write keeps by its SQL: the condition of a write ("at most 3", "not after the year is closed"), a unique index, a foreign key that refuses a delete. Run `vp dev`, sign in with curl and send the requests:
+
+```sh
+curl -s -c jar -X POST localhost:5173/api/auth/sign-in/email \
+  -H 'content-type: application/json' -d '{"email":"a@example.test","password":"..."}'
+```
+
+- **Two writes that must not both win** (lending and retiring the same book, a member borrowing a fourth book in two tabs): send them at the same time, a few times (20) on fresh rows, and check that not both succeeded. The gap between a read and a write is hit only by two requests: a check read before the write passes one at a time and fails here (docs/domains.md, Writing)
+- **A rule kept by the write's condition**: send the request that breaks it and check the status (409, 422) and that no row was written
+- **A row another domain points at**: delete it and check it is refused
+
+Make the rows through the app (its pages and actions, or curl to them), not by writing into the tables. Write down what was sent and what came back in the report of the work.
 
 ## Data
 
-- The tests in one file share its database, in order. Each test makes the rows it needs (its own book, its own member id: `"member-1"`); it does not count on what another test left or on an empty table
-- **Make the rows through the app's usecases** (`addBook`, then `borrowBook`), not by inserting into the tables: rows a usecase could not have made test nothing real. The rules apply while you build them, so build in an order they allow (borrow the loan due last first, or an earlier one is overdue on the day of the next). Insert directly only into a table no usecase writes: the auth `user` table, with `db` from `void/db` and `userTable` from `@auth-schema`
-- A list filtered by member: use a member no other test touches. A list of everything (every overdue loan, every member): keep only the rows the test made (`rows.filter((r) => ids.includes(r.id))`) and check their order among themselves
-- A member is an id (a string): a usecase takes it as an argument, so a test does not sign in
 - **The date is an argument.** A usecase takes `today` (or `now`) from its caller, so a test passes a fixed one (`"2026-11-24"`) and the result does not change with the day it runs. When code reads `now` that a test cannot pass, fix the clock with `vi.setSystemTime(new Date("2026-11-24T00:00:00+09:00"))`
+- A member is an id (a string): a usecase takes it as an argument, so a test does not sign in
