@@ -49,7 +49,7 @@ Void の上に載せるので、これを足す。
 - **アプリが作る門番（`requireAdmin` など）は `src/guards.ts` に置き、断るときも Failure を `throw toHttp(...)` で投げる**。`src/lib/` は domain を import できず、domain は `void/auth` を import できないので、その間の置き場所が要る（管理者の試験で、AI が置き場所に迷って自分で決めた）。呼んだ人だけで決まる権限（管理者だけ）は門番、行を見ないと決まらない権限（自分の貸出だけ）は usecase。門番にすると、入力の検証より先に断れて、`auth:` を grep すれば入口が全部出る
 - **全ページ共通のデータ（ヘッダー）は、各 loader が 1 つの関数から返し、`response` に書く**。Void の shared（middleware の `c.set("shared", ...)`）は `response` を通らずに全ページの HTML に入るので、行をそのまま置くと全部の列が出る。関数は guard が返したものを受け取るので、guard の隣（`src/guards.ts`）に置く（サークル収支の試験で、AI がこの形にしたが docs に置き場所が無かった）
 - **domain の前後は、id を持つ側ではなく、読む・呼ぶ向きで決める**。帳簿は口座にサークルの id を持つが、サークルを作るときに帳簿の usecase を呼び、帳簿はサークルを読まない。このときサークルが後（サークル収支の試験で、AI が外部キーの決まりとの食い違いに迷った）
-- **void-kit から写したファイルは、アプリの lint と fmt から外す**。Void 1.12 の雛形は `@cloudflare/oxlint-config` を最初から入れていて、写したファイルはそれに合っていない
+- **void-kit から写したファイルも、Void の雛形の lint と fmt に従う**（`@cloudflare/oxlint-config`、`vp fmt`）。前はアプリの設定から外していたが、Void から外れていた。型をつなぎ直す所（`createHandler` の中で Void の `defineHandler` に渡す所など）で避けられない断定だけ、理由を書いて `oxlint-disable-next-line` にする。ログは `console` ではなく Void の `void/log` の `logger`
 - **門番が 403 で断るアプリは `pages/_error.tsx` を持つ**。無いと、ページの 403 は素のテキストで返る。action の 403 も `_error.tsx` が受け止める（`throwOnError: false` は要らない）。dev では `_error.tsx` を初めて使うときに読み込みを待つので、一瞬画面が空になる（これを Void の不具合と取り違えた）
 - **handler の 2 つ目の引数に、入力・`member`・`now` を入れる**。Void は検証した入力を 2 つ目の引数で渡し、`c.req.valid(...)` には登録しない。Hono v5 も 2 つ目で渡す。`member` を `c.var` に置かないのは、Void の `c.var` の型がアプリ全体で 1 つ（`CloudContextVariables`）で、`auth` によって型を変えられないから。2 つ目の引数なら、`requireMember` で `AuthUser`、`allowAnonymous` で `null` と分けられる。`now` は型の問題は無いが、受け取るものを 1 か所に揃えた
 - **`response` は loader と route で必須、action では書かない**。loader の戻り値はそのままページの HTML に埋め込まれ、route の戻り値はそのまま送られる。行をそのまま返すと全部の列が出ていく（会員の行ならメールアドレス）。スキーマに通した値を返すので、宣言に無い項目は落ち、合わなければ 500（型が見逃したバグ）。action は何も返さない（ページを描き直す）かリダイレクトなので要らない。必須かどうかは型では分からない（関数は自分が loader か知らない）ので lint で見る
@@ -90,5 +90,4 @@ Void の上に載せるので、これを足す。
   - Void の auth が無効なとき、直し方を書いて止める（黙って全部 401 にしない）
   - lint `no-module-scope-state`（Workers はリクエストをまたいでモジュールの変数を共有する）
 - **route がファイル（CSV・画像）を返す形**。`createHandler` は route に `response` を求めるが、ファイルは JSON のスキーマで書けない。サークル収支の 2 回目で、AI は CSV をブラウザで作って避けた。領収書の写真を返す回で決める
-- **presets を `@cloudflare/oxlint-config` に合わせるか**。今はアプリの lint と fmt から外している
 - **`UserId` の印と lint `no-id-cast`**。id の取り違えの実例が出たら

@@ -5,7 +5,7 @@
  */
 import path from "node:path";
 
-const relativeOf = (file, root) => path.relative(root, file).replace(/\\/g, "/");
+const relativeOf = (file, root) => path.relative(root, file).replaceAll("\\", "/");
 
 const isTest = (rel) => /\.(test|typetest|spec)\.tsx?$/.test(rel);
 
@@ -26,9 +26,13 @@ const pageFileNames = new Set([
 const pageIsIndex = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (!rel.startsWith("pages/") || isTest(rel)) return {};
+    if (!rel.startsWith("pages/") || isTest(rel)) {
+      return {};
+    }
     const name = path.posix.basename(rel);
-    if (pageFileNames.has(name)) return {};
+    if (pageFileNames.has(name)) {
+      return {};
+    }
     const stem = name.replace(/(\.server)?\.[jt]sx?$/, "");
     const server = /\.server\.[jt]sx?$/.test(name);
     const dir = path.posix.dirname(rel);
@@ -45,9 +49,14 @@ const pageIsIndex = {
 
 /** import の行が型だけか */
 const isTypeOnly = (node) => {
-  if (node.importKind === "type" || node.exportKind === "type") return true;
+  if (node.importKind === "type" || node.exportKind === "type") {
+    return true;
+  }
   const specifiers = node.specifiers ?? [];
-  return specifiers.length > 0 && specifiers.every((s) => s.importKind === "type" || s.exportKind === "type");
+  return (
+    specifiers.length > 0 &&
+    specifiers.every((s) => s.importKind === "type" || s.exportKind === "type")
+  );
 };
 
 /** 相対の import の行き先（root からの相対）。パッケージなら null */
@@ -64,14 +73,22 @@ const tierOf = (rel) => {
 const bindingOnly = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (!rel.startsWith("pages/") || !rel.endsWith(".tsx") || isTest(rel)) return {};
+    if (!rel.startsWith("pages/") || !rel.endsWith(".tsx") || isTest(rel)) {
+      return {};
+    }
     const check = (node) => {
-      if (!node.source || isTypeOnly(node)) return;
+      if (!node.source || isTypeOnly(node)) {
+        return;
+      }
       const spec = node.source.value;
       const target = targetRelOf(spec, context.filename, context.cwd);
-      if (target && tierOf(target)?.tier === "screens") return;
+      if (target && tierOf(target)?.tier === "screens") {
+        return;
+      }
       // Void の部品を読むときに要る、副作用だけの import（CSS）
-      if (/\.css$/.test(spec)) return;
+      if (/\.css$/.test(spec)) {
+        return;
+      }
       context.report({
         node: node.source,
         message: `${rel} only binds its URL to a screen: import the screen from src/components/screens/ and the type of the loader's props, and put ${spec} in the screen. ${MORE}`,
@@ -86,7 +103,9 @@ const componentTiers = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
     const from = tierOf(rel);
-    if (!rel.startsWith("src/components/") || isTest(rel)) return {};
+    if (!rel.startsWith("src/components/") || isTest(rel)) {
+      return {};
+    }
     if (!from || !from.nested) {
       return {
         Program(node) {
@@ -98,27 +117,34 @@ const componentTiers = {
       };
     }
     const check = (node) => {
-      if (!node.source) return;
+      if (!node.source) {
+        return;
+      }
       const target = targetRelOf(node.source.value, context.filename, context.cwd);
-      if (!target) return;
+      if (!target) {
+        return;
+      }
       const to = tierOf(target);
       let reason = null;
-      if (target.startsWith("pages/") && !isTypeOnly(node))
-        reason = "a component takes its data as props: import only the type of the loader's props from pages/";
-      else if (to?.tier === "screens" && !(from.tier === "screens" && to.name === from.name))
+      if (target.startsWith("pages/") && !isTypeOnly(node)) {
+        reason =
+          "a component takes its data as props: import only the type of the loader's props from pages/";
+      } else if (to?.tier === "screens" && !(from.tier === "screens" && to.name === from.name)) {
         reason =
           from.tier === "screens"
             ? `a screen never imports another screen: move what both use to src/components/widgets/`
             : "a part never imports a screen";
-      else if (from.tier === "shared" && to && to.tier !== "shared")
+      } else if (from.tier === "shared" && to && to.tier !== "shared") {
         reason = "shared UI knows no domain and no part: pass what it shows as props";
-      else if (from.tier === "shared" && target.startsWith("src/domains/"))
+      } else if (from.tier === "shared" && target.startsWith("src/domains/")) {
         reason = "shared UI knows no domain: pass what it shows as props, or move it to widgets/";
-      if (reason)
+      }
+      if (reason) {
         context.report({
           node: node.source,
           message: `${rel} may not import ${node.source.value}: ${reason}. ${MORE}`,
         });
+      }
     };
     return { ImportDeclaration: check, ExportNamedDeclaration: check, ExportAllDeclaration: check };
   },

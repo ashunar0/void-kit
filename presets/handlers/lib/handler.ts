@@ -1,11 +1,7 @@
-import {
-  defineHandler,
-  type CloudContext,
-  type HandlerInput,
-  type TypedHandler,
-  type ValidatorSlots,
-} from "void";
+import { defineHandler } from "void";
+import type { CloudContext, HandlerInput, TypedHandler, ValidatorSlots } from "void";
 import { requireAuth } from "void/auth";
+import { logger } from "void/log";
 import { HTTPException } from "hono/http-exception";
 import type { MiddlewareHandler } from "hono";
 
@@ -54,10 +50,10 @@ type Middleware =
  * The schemas a config declares, put back together from their own type parameters.
  * Each one has its own so that TypeScript reads them before it types the handler beside them
  */
-type Declared<B, Q, P, S> = (B extends Schema ? { body: B } : {}) &
-  (Q extends Schema ? { query: Q } : {}) &
-  (P extends Schema ? { params: P } : {}) &
-  (S extends Schema ? { response: S } : {});
+type Declared<B, Q, P, S> = (B extends Schema ? { body: B } : unknown) &
+  (Q extends Schema ? { query: Q } : unknown) &
+  (P extends Schema ? { params: P } : unknown) &
+  (S extends Schema ? { response: S } : unknown);
 
 /** What reaches the page or the client: the response schema's output when there is one */
 type Returned<C, R> = C extends { response: infer S extends Schema }
@@ -112,29 +108,44 @@ export const createHandler = <
 > => {
   const { handler } = config;
   const auth: MiddlewareHandler = async (c, next) => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, quality/no-chained-type-assertions -- Void runs this middleware with its CloudContext, typed as Hono's Context
     c.set(MEMBER, await config.auth.check(c as unknown as CloudContext));
     await next();
   };
   const slots: Slots = {};
-  if (config.body) slots.body = config.body;
-  if (config.query) slots.query = config.query;
-  if (config.params) slots.params = config.params;
+  if (config.body) {
+    slots.body = config.body;
+  }
+  if (config.query) {
+    slots.query = config.query;
+  }
+  if (config.params) {
+    slots.params = config.params;
+  }
 
   const run = defineHandler.withValidator(slots)(async (c, input) => {
     const now = new Date();
-    const result = await handler(c, { ...(input as object), member: c.get(MEMBER), now } as Input<
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Void's input and the member set by auth above, put back together under the config's types
+    const passed = { ...(input as object), member: c.get(MEMBER), now } as Input<
       Declared<B, Q, P, S>,
       Member
-    >);
-    if (config.response === undefined || result instanceof Response) return result;
+    >;
+    const result = await Promise.resolve(handler(c, passed));
+    // oxlint-disable-next-line @nkzw/no-instanceof -- a redirect or a 404 is a Response, passed on as it is
+    if (config.response === undefined || result instanceof Response) {
+      return result;
+    }
     const checked = await config.response["~standard"].validate(result);
     if (checked.issues) {
-      console.error("The handler returned what its response schema does not allow", checked.issues);
+      logger.error("The handler returned what its response schema does not allow", {
+        issues: checked.issues,
+      });
       throw new HTTPException(500, { message: "Internal Server Error" });
     }
     return checked.value;
   });
 
   const middleware = config.middleware ?? [];
-  return (defineHandler as (...args: unknown[]) => unknown)(auth, ...middleware, run) as never;
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion, quality/no-unknown-returns -- Void types defineHandler(...middleware, handler) for a fixed count; the return type is declared above
+  return (defineHandler as (...args: Array<unknown>) => unknown)(auth, ...middleware, run) as never;
 };

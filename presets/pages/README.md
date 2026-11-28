@@ -26,7 +26,7 @@ export default defineConfig({
 });
 ```
 
-With plain Vite, put the same `jsPlugins` and `rules` in `.oxlintrc.json`. Leave `lint/**` out of the app's lint and format settings, as the other presets say.
+With plain Vite, put the same `jsPlugins` and `rules` in `.oxlintrc.json`.
 
 `AGENTS.md`:
 

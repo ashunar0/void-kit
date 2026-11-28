@@ -33,6 +33,7 @@ A test imports the file it tests directly (`./borrowBook`, `../rules`), and anyt
   ```
 
   A write that comes back with no row (its condition did not hold) is a case too: say so with the mock (`mockResolvedValue([])`) and check the usecase reads again and returns the failure the spec names (docs/domains.md, Writing)
+
 - **A usecase in steps** (write here, then call another domain, then confirm): make each step fail in turn with the mock, and check what is left and that running it again finishes it
 - A query or a mutation is not tested with `vp test`: it is SQL, and a mock would only repeat it. It is checked in `vp dev` (below)
 - A loader, an action or a route is not tested: who may call it, its input and what it sends are held by `createHandler`, its types and the lint (docs/handlers.md). Keep what it does to a call of a usecase or of queries, and test those. **When a loader combines results by a rule of the spec** (a book is available when neither retired nor on loan, a member's count of books and overdue flag), that rule is a function of a `rules.ts` (`isAvailable`, `loanSummaryOf`), tested there; what stays in the loader is reading and looking up (a title by id)

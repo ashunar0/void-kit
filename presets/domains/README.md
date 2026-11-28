@@ -24,12 +24,7 @@ export default defineConfig({
 
 With plain Vite, put the same `jsPlugins` and `rules` in `.oxlintrc.json`.
 
-The copied files are not written to the app's lint and format settings (a Void app starts with `@cloudflare/oxlint-config`). Leave them out of both, next to what Void generates:
-
-```ts
-lint: { ignorePatterns: [/* ... */ "lint/**", "src/lib/void-kit/**"] },
-fmt: { ignorePatterns: ["AGENTS.md", "docs/**", "lint/**", "src/lib/void-kit/**", "db/migrations/**"] },
-```
+The copied files follow the lint and format settings a Void app starts with (`@cloudflare/oxlint-config`, `vp fmt`): do not leave them out of either.
 
 `AGENTS.md`:
 

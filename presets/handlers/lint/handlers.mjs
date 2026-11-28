@@ -5,7 +5,7 @@
  */
 import path from "node:path";
 
-const relativeOf = (file, root) => path.relative(root, file).replace(/\\/g, "/");
+const relativeOf = (file, root) => path.relative(root, file).replaceAll("\\", "/");
 
 const isTest = (rel) => /\.(test|typetest|spec)\.tsx?$/.test(rel);
 
@@ -16,9 +16,12 @@ const isRoute = (rel) => rel.startsWith("routes/");
 const routeMethods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ALL"]);
 
 const isCreateHandler = (node) =>
-  node?.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "createHandler";
+  node?.type === "CallExpression" &&
+  node.callee.type === "Identifier" &&
+  node.callee.name === "createHandler";
 
-const configOf = (call) => (call.arguments[0]?.type === "ObjectExpression" ? call.arguments[0] : null);
+const configOf = (call) =>
+  call.arguments[0]?.type === "ObjectExpression" ? call.arguments[0] : null;
 
 const hasKey = (object, key) =>
   object.properties.some(
@@ -31,7 +34,9 @@ const MORE = "More: docs/handlers.md";
 const throughCreateHandler = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (isTest(rel) || !(isPageServer(rel) || isRoute(rel))) return {};
+    if (isTest(rel) || !(isPageServer(rel) || isRoute(rel))) {
+      return {};
+    }
 
     const requireCreated = (node, name, needsResponse) => {
       if (!isCreateHandler(node)) {
@@ -42,30 +47,42 @@ const throughCreateHandler = {
         return;
       }
       const config = configOf(node);
-      if (needsResponse && config && !hasKey(config, "response"))
+      if (needsResponse && config && !hasKey(config, "response")) {
         context.report({
           node: config,
           message: `${name} returns what reaches the ${isRoute(rel) ? "client" : "browser (it is put in the page's HTML)"}: declare it as response, so a column it should not send is left out. ${MORE}`,
         });
+      }
     };
 
     return {
       ExportNamedDeclaration(node) {
         const declaration = node.declaration;
-        if (declaration?.type !== "VariableDeclaration") return;
+        if (declaration?.type !== "VariableDeclaration") {
+          return;
+        }
         for (const d of declaration.declarations) {
           const name = d.id.name;
-          if (isRoute(rel) && routeMethods.has(name)) requireCreated(d.init, name, true);
-          if (!isPageServer(rel)) continue;
-          if (name === "loader") requireCreated(d.init, name, true);
-          if (name === "action") requireCreated(d.init, name, false);
+          if (isRoute(rel) && routeMethods.has(name)) {
+            requireCreated(d.init, name, true);
+          }
+          if (!isPageServer(rel)) {
+            continue;
+          }
+          if (name === "loader") {
+            requireCreated(d.init, name, true);
+          }
+          if (name === "action") {
+            requireCreated(d.init, name, false);
+          }
           if (name === "actions") {
             if (d.init?.type !== "ObjectExpression") {
               requireCreated(d.init, name, false);
               continue;
             }
-            for (const p of d.init.properties)
+            for (const p of d.init.properties) {
               requireCreated(p.value, `actions.${p.key?.name ?? p.key?.value}`, false);
+            }
           }
         }
       },
@@ -77,12 +94,21 @@ const throughCreateHandler = {
 const noJsonResponse = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (isTest(rel) || !(isPageServer(rel) || isRoute(rel))) return {};
+    if (isTest(rel) || !(isPageServer(rel) || isRoute(rel))) {
+      return {};
+    }
     return {
       CallExpression(node) {
         const callee = node.callee;
-        if (callee.type !== "MemberExpression" || callee.property.name !== "json") return;
-        if (callee.object.type !== "Identifier" || !["c", "Response"].includes(callee.object.name)) return;
+        if (callee.type !== "MemberExpression" || callee.property.name !== "json") {
+          return;
+        }
+        if (
+          callee.object.type !== "Identifier" ||
+          !["c", "Response"].includes(callee.object.name)
+        ) {
+          return;
+        }
         context.report({
           node,
           message: `Return the value instead of ${callee.object.name}.json(): createHandler checks it against response only when it is returned as it is. ${MORE}`,
@@ -96,8 +122,14 @@ const noJsonResponse = {
 const noClock = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (isTest(rel) || rel === "src/lib/void-kit/handler.ts" || rel.startsWith("..") || rel.startsWith("node_modules/"))
+    if (
+      isTest(rel) ||
+      rel === "src/lib/void-kit/handler.ts" ||
+      rel.startsWith("..") ||
+      rel.startsWith("node_modules/")
+    ) {
       return {};
+    }
     const report = (node) =>
       context.report({
         node,
@@ -105,8 +137,13 @@ const noClock = {
       });
     return {
       NewExpression(node) {
-        if (node.callee.type === "Identifier" && node.callee.name === "Date" && node.arguments.length === 0)
+        if (
+          node.callee.type === "Identifier" &&
+          node.callee.name === "Date" &&
+          node.arguments.length === 0
+        ) {
           report(node);
+        }
       },
       CallExpression(node) {
         const callee = node.callee;
@@ -115,8 +152,9 @@ const noClock = {
           callee.object.type === "Identifier" &&
           callee.object.name === "Date" &&
           callee.property.name === "now"
-        )
+        ) {
           report(node);
+        }
       },
     };
   },
@@ -126,7 +164,9 @@ const noClock = {
 const noTestsInRoutes = {
   create(context) {
     const rel = relativeOf(context.filename, context.cwd);
-    if (!isTest(rel) || !(rel.startsWith("routes/") || rel.startsWith("pages/"))) return {};
+    if (!isTest(rel) || !(rel.startsWith("routes/") || rel.startsWith("pages/"))) {
+      return {};
+    }
     return {
       Program(node) {
         context.report({

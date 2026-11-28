@@ -42,11 +42,11 @@ The screen takes the same `Props` (`import type { Props } from ".../pages/.../in
 
 ## src/components/
 
-| Tier | What goes there | May import |
-| --- | --- | --- |
-| `screens/<screen>/` | one screen: its `index.tsx`, and the pieces only it uses, beside it | widgets, shared, a domain's `rules.ts`, types |
-| `widgets/<part>/` | a part two or more screens use. It knows the domains' words (a circle's header, the fields of a transaction) | other widgets (no cycle), shared, a domain's `rules.ts`, types |
-| `shared/<part>/` | generic UI: a hook that runs an action, a pager. It knows no domain | other shared only |
+| Tier                | What goes there                                                                                              | May import                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `screens/<screen>/` | one screen: its `index.tsx`, and the pieces only it uses, beside it                                          | widgets, shared, a domain's `rules.ts`, types                  |
+| `widgets/<part>/`   | a part two or more screens use. It knows the domains' words (a circle's header, the fields of a transaction) | other widgets (no cycle), shared, a domain's `rules.ts`, types |
+| `shared/<part>/`    | generic UI: a hook that runs an action, a pager. It knows no domain                                          | other shared only                                              |
 
 - **A screen never imports another screen.** When a second screen wants a piece of one, move the piece to `widgets/`
 - **A piece starts in the screen that needs it** and moves only when a second screen wants it. Nothing goes in `widgets/` or `shared/` in advance
